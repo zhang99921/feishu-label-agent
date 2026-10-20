@@ -1,0 +1,52 @@
+{
+  "verified_date": "2026-10-20",
+  "scope": "HTTP_TO_REAL_BUSINESS_CODE_WITH_SYNTHETIC_IDENTITY_AND_MEMORY_STORAGE",
+  "full_local_tests_run": 165,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "result": "PASS",
+  "new_http_workflow_tests": 15,
+  "business_components_exercised": [
+    "FastAPI request validation and error handling",
+    "AuthenticatedWorkflow and PermissionGate",
+    "Workflow and AuditedWorkflow",
+    "Store record mapping and read scopes",
+    "Pallet allocator and ten-minute cooldown",
+    "Audit outbox and cooperating-process lock"
+  ],
+  "scenarios": [
+    "Inbound, query, transfer, partial and final outbound",
+    "Same-key replay without duplicate operation or version",
+    "Old success replay cannot overwrite later state",
+    "Same key with different payload or actor returns conflict",
+    "Two concurrent stale-version requests have one winner",
+    "One code cannot bind two pallets",
+    "Reentry blocked during cooldown and accepted at ten-minute boundary",
+    "Query-only role and cross-batch scope deny mutations",
+    "Role revocation checked before idempotency replay",
+    "Admin correction and undo preserve code and append history",
+    "Later movement blocks undo of older history",
+    "Uncertain committed write returns pending and same-key recovery completes once",
+    "Unknown barcode cannot silently create a new identity",
+    "Durable failed-audit queue blocks new writes until delivery",
+    "Expired session cannot replay an old success"
+  ],
+  "identity_and_native_role_membership": "FIXTURE_NOT_REAL_FEISHU_ACCOUNT",
+  "storage": "IN_MEMORY_WITH_IMMEDIATE_CONSISTENCY_ASSUMPTION",
+  "network_failure_test": "FAULT_INJECTION_NOT_LIVE_NETWORK",
+  "local_test_duration_seconds": 5.312,
+  "production_code_modified_this_round": false,
+  "remote_inventory_mutations": 0,
+  "remote_permission_changes": 0,
+  "migration_performed": false,
+  "server_deployment_performed": false,
+  "git_commit_performed": false,
+  "remaining": [
+    "Native Feishu user permission acceptance deferred by user",
+    "Real authenticated HTTP-to-Feishu workflow",
+    "Representative performance/load and on-site physical validation",
+    "Target-server/Linux acceptance"
+  ],
+  "release_accepted": false
+}

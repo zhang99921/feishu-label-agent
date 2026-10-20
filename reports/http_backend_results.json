@@ -1,0 +1,50 @@
+{
+  "verified_date": "2026-10-19",
+  "delivery_target": "SINGLE_HTTP_BACKEND",
+  "frameworks": {
+    "fastapi": "0.146.0",
+    "uvicorn": "0.54.0",
+    "pydantic": "2.14.1"
+  },
+  "real_loopback_tcp_smoke": [
+    {
+      "check": "live",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "check": "not_ready",
+      "status": 503,
+      "result": "PASS"
+    },
+    {
+      "check": "anonymous_inventory",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "check": "unconfigured_inventory",
+      "status": 503,
+      "result": "PASS"
+    },
+    {
+      "check": "unconfigured_write",
+      "status": 503,
+      "result": "PASS"
+    },
+    {
+      "check": "docs_closed",
+      "status": 404,
+      "result": "PASS"
+    }
+  ],
+  "http_integration_tests": 19,
+  "process_lock_test_platform": "Windows",
+  "linux_server_acceptance_run": false,
+  "default_real_inventory_connected": false,
+  "ordinary_user_auth_acceptance": "DEFERRED_BY_USER",
+  "mcp_protocol_testing": "DEFERRED_BY_USER",
+  "remote_permission_changes": 0,
+  "remote_inventory_mutations": 0,
+  "production_release_accepted": false
+}

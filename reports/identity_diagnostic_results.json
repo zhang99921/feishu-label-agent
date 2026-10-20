@@ -1,0 +1,29 @@
+{
+  "verified_date": "2026-10-19",
+  "real_login_revalidated": true,
+  "real_login_direct_document_permission": "full_access",
+  "native_role_member_lookup_completed": true,
+  "ordinary_role_applicability_verified": false,
+  "read_only_account_acceptance_completed": false,
+  "inventory_access_granted": false,
+  "tokens_persisted": false,
+  "permission_changes": 0,
+  "remote_inventory_mutations": 0,
+  "new_oauth_scopes": [],
+  "local_tests_passed": 128,
+  "new_tests": 7,
+  "changes": [
+    "Read-only document collaborator privilege adapter",
+    "Separate unresolved native fields from explicit denials",
+    "Loopback status diagnoses managed-account test limitation"
+  ],
+  "remaining": [
+    "A suitable real non-manager account for ordinary role testing",
+    "Verify omitted field-permission map semantics on this Demo",
+    "Default/system role applicability and live account action tests"
+  ],
+  "references": [
+    "https://open.feishu.cn/document/server-docs/docs/permission/permission-member/list",
+    "https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/bitable-v1/advanced-permission/base-v2/app-role/update"
+  ]
+}
