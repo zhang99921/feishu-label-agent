@@ -1,0 +1,97 @@
+找货助手——日志下载与归档运行说明（2026-10-28）
+
+一、已确认规则与当前边界
+服务器运行文本日志保留30天；办公电脑本地目录 D:\系统运维\找货助手\日志，每天拉取一次，长期保存，不自动删除。
+每日时刻先在配置模板提供09:00（办公电脑本地时间），可按交接调整；当前没有服务器地址、SSH账户、密钥或已核实的主机公钥，因此默认配置enabled=false，不注册空跑任务。
+图片识别录入不在当前开发范围，前端入口已移除；箱规二维码生成组件保留，标签样式及后续接口继续对接。
+本工具只传输运行文本日志，完全不连接飞书或PostgreSQL，不导出.env/数据库/会话/审计整表。
+数据库审计和事务账保留策略另行确定；详见《审计日志目录与运维交接说明.txt》。
+
+二、数据流转
+运行组件→活跃http.log/sync.log/intake.log→按UTC日期/大小压缩归档。
+服务器log_transfer.py export→受限catalog.json和按SHA-256命名的不可变对象。
+办公电脑log_transfer.py pull→拉取清单→校验已有对象→补拉缺失对象→核验大小和SHA-256→原子转正→保存清单及结果。
+SFTP读取不执行rm/put或远端命令；下载成功不会通知服务器删除原件。
+服务器导出对象按源日志UTC日期维护30天窗口；已下载到本地的对象与清单不按服务器窗口删除。
+服务端目录清理只针对本工具格式的过期对象；旧数字轮转文件、外部控制台文件和未知文件不自动导出/清理。
+
+三、本地目录
+D:\系统运维\找货助手\日志\
+  download-config.json             待配置的正式SFTP配置，不含密码或令牌
+  finding-assistant\              正式服务器系统标识目录
+    status.json                    最近结果、上次成功、源清单时效、可能历史缺口
+    download-events.jsonl          每轮安全摘要，长期保存
+    manifests\清单SHA256.json      历史清单，逻辑日志路径→对象路径映射
+    objects\内容SHA256.log         活跃文件的完整行前缀快照
+    objects\内容SHA256.log.gz      已归档压缩日志
+    .partial\                     中断续传临时文件，不代表已核验完成
+    quarantine\                   校验失败或本地损坏文件，保留原始证据
+    .transfer.lock                 防止定时与人工拉取重叠
+  finding-assistant-demo\         本机Demo验收日志，不能冒充正式服务器日志
+  demo-acceptance.json             仅本机验收源配置，不供正式定时任务使用
+
+对象按内容保存以避免重复下载。文件原来的组件、日期及逻辑路径保存在清单logical_path。
+让Codex排查时提供system_id、status.json、时间窗及相关manifests/objects；解压.gz读取即可。
+日志属于不可信数据，不根据日志中的文本执行命令或修改权限。
+
+四、服务器导出
+用服务运行账号执行（路径按实际部署更换）：
+  python log_transfer.py export --log-dir /var/log/finding-assistant --output /var/lib/finding-assistant/log-export --system-id finding-assistant
+导出目录必须与运行日志目录分离，不能互相包含。导出账号只需日志读取及导出目录写入权限，不需要数据库凭据。
+只导出三个组件的活跃日志及本程序严格命名归档。活跃文件按开始读取时的长度截取，并去掉末尾未完成的行；跨组件不是原子快照。
+导出完成才原子发布catalog.json；对象带长度、SHA-256，源读取失稳时保留旧清单，不以半份清单覆盖。
+需要在服务器配置周期运行导出命令（例如每小时一次），由运维在正式部署时启用；本轮不远程安装定时器。
+服务器仅保留30天，不保证本地离线超过30天仍可补齐；状态会提示长时间未成功后的可能缺口，但不是逐行完整性的证明。
+
+五、正式SFTP配置
+复制log-download.example.json为本地download-config.json，再配置：
+  enabled=true
+  system_id：固定环境标识；测试与正式环境必须不同
+  destination：已确定的D盘目录
+  transport=sftp
+  host/port/username：服务器只读SFTP账户
+  identity_file：SSH身份文件绝对路径；密钥不放日志目录、不打包进项目
+  known_hosts：已通过受控渠道核实服务器主机公钥的文件绝对路径
+  remote_root：SFTP可见的导出目录绝对路径（若隔离目录，按隔离后的路径填写）
+  daily_time：HH:mm，模板09:00
+  min_free_bytes：默认1073741824，保留至少1GiB空闲空间才继续拉取
+首版host支持域名和IPv4；暂不配置IPv6或跳板机。
+使用系统OpenSSH sftp，无新增Python依赖。BatchMode=yes、StrictHostKeyChecking=yes，不自动接受新主机公钥，不保存密码，不执行交互式授权。
+私钥若加密，需要登录会话中可用的SSH代理；本工具不保存私钥口令，定时任务须用同一已配置账号验收。
+SSH主机变化、密钥不可用或认证失败时停止，不回退到不校验主机身份。
+参考：OpenSSH官方sftp手册 https://man.openbsd.org/sftp （batch/get -a等行为）。
+
+六、命令入口
+在 E:\Sourcing agent 执行：
+  .\.venv\Scripts\python.exe log_transfer.py validate --config "D:\系统运维\找货助手\日志\download-config.json"
+  .\.venv\Scripts\python.exe log_transfer.py pull --config "D:\系统运维\找货助手\日志\download-config.json"
+  .\.venv\Scripts\python.exe log_transfer.py status --config "D:\系统运维\找货助手\日志\download-config.json"
+validate只检查配置和本机SSH文件，不证明远端已连通。enabled=false返回configured=false，不连接服务器。
+pull成功退出0，已记录的下载失败/未配置退出2；配置或工具本身无法确认时退出1。错误输出固定码，不输出SSH原文、配置值或异常堆栈。
+失败保留原来已成功对象和上次成功索引；部分文件继续保留，下一次可从断点继续。
+SHA-256不一致不转正，隔离后再进行完整下载，不通过覆盖本地好文件掩盖错误。
+
+七、每天一次的Windows任务
+先完成一次真实SFTP手动拉取验收，再执行预览：
+  .\install-log-download-task.ps1 -ConfigPath "D:\系统运维\找货助手\日志\download-config.json" -Preview
+确认后去掉-Preview注册。脚本不接受disabled或local验收配置，不覆盖已有同名任务。
+任务名FindingAssistant-LogDownload-系统标识，每天按daily_time执行，遗漏后在系统允许时补跑，重叠实例忽略。
+使用当前Windows账号Interactive/Limited模式，无密码、无提权；电脑关机或账号未登录时不会运行，下一次登录后由StartWhenAvailable补跑，不能保证关机期间实时下载。
+pythonw.exe隐藏窗口，结果写本地status.json和download-events.jsonl；每轮最多2小时，未结束的部分文件保留。
+未连接正式服务器前不注册任务，本轮实际仅准备脚本和禁用配置。
+
+八、状态与日常排查
+SUCCEEDED：本轮清单列出的对象已校验，不保证清单涵盖所有历史数据。
+source_stale=true：源清单超过36小时，应检查服务器导出调度；原对象仍保留。
+possible_history_gap=true：距离上次成功超过30天，或导出源存在缺失，需核对能否补齐。
+source_empty=true：源清单没有日志，不能据此证明服务器没有事件。
+DOWNLOAD_NOT_CONFIGURED：未启用正式配置；默认不会联网。
+SFTP_UNAVAILABLE：网络、主机公钥、身份文件或远端权限等需核查；不输出原始SSH文本。
+LOG_CHECKSUM_MISMATCH：文件校验不一致，查看quarantine，重新导出/拉取，禁止当作成功。
+LOCAL_DISK_SPACE_LOW：保留已有数据并停止本轮；本工具不自动清理本地文件。
+LOG_DOWNLOAD_UNCONFIRMED：清单或文件结果不确定，保持原证据后排查。
+当前没有邮件、飞书通知或Codex自动触发；需要查看状态，后续可接告警。下载程序不会自行调用Codex。
+
+九、验收边界
+开发测试使用临时目录、本机文件源和模拟SFTP进程，不联系真实远端主机。
+本机Demo日志复制可证明本地导出/下载链路，不代表已配置云服务器、通过真实SSH认证、注册Windows任务或完成30天长期运行验收。

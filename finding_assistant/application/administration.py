@@ -1,3 +1,5 @@
+# 失败审计与管理操作辅助：成功流转由 operations 表记录；失败或待核实事件写入 audits。
+# 本地 outbox 是待投递审计队列，不是第二份库存数据库。
 """Test-only failure audit sink and quantity administration schema.
 
 Principals remain fixtures. This does not configure Feishu user permissions.
@@ -14,6 +16,7 @@ from finding_assistant.application.workflow import ROOT, Conflict, Workflow, cho
 from finding_assistant.domain.quantity_rules import RuleError
 
 
+# 仅为验证表补充数量、更正、撤销及审计字段，避免误初始化生产或恢复表。
 def setup_administration(store):
     if store.manifest_path != ROOT / "workflow_state.local.json":
         raise Conflict("administration experiment must not bootstrap restored or production tables")
@@ -56,6 +59,7 @@ def setup_administration(store):
         save(store.manifest_path, store.manifest)
 
 
+# 先保存失败审计到本地，再投递飞书；远端确认后才移除队列项。
 class Audit:
     def __init__(self, store, path=None):
         self.store = store
@@ -64,6 +68,7 @@ class Audit:
     def queued(self):
         return json.loads(self.path.read_text(encoding="utf-8")) if self.path.exists() else []
 
+    # 按审计ID识别已写入事件；响应丢失后重试不会盲目新建第二份相同事件。
     def _deliver(self, event):
         existing = self.store.named("audits", "审计ID", event["审计ID"])
         if existing:
@@ -72,6 +77,7 @@ class Audit:
             return existing
         return self.store.create("audits", event["审计ID"], event)
 
+    # 按队列顺序逐条投递并回读确认；失败时保留当前及后续条目。
     def _flush_locked(self):
         queued = self.queued()
         while queued:
@@ -87,6 +93,7 @@ class Audit:
         with writer_gate():
             self._flush_locked()
 
+    # 区分明确拒绝和结果待核实；记录请求摘要及身份，对错误中的令牌/密钥做脱敏。
     def record_failure(self, key, payload, principal, error):
         with writer_gate():
             pending = isinstance(error, (ProbeError, RuleError))
@@ -98,25 +105,28 @@ class Audit:
                     pending = True  # Queue the audit even when reconciliation lookup is unavailable.
             digest = hashlib.sha256(json.dumps({"request": payload, "actor": principal.actor,
                   "scope": principal.batch}, sort_keys=True, default=str, ensure_ascii=False).encode()).hexdigest()
-            message = str(error)[:500]
-            for secret in (self.store.client.config.get("app_secret"), self.store.client.token):
-                if secret:
-                    message = message.replace(secret, "[REDACTED]")
+            # 不能假定异常只包含已知应用密钥；用户令牌、DSN和业务数据同样可能被上游回显。
+            message = 'OPERATION_UNCONFIRMED' if pending else 'OPERATION_REJECTED'
             event = {"审计ID": str(uuid.uuid4()), "请求幂等键": str(key)[:100], "请求摘要": digest,
                      "操作人": principal.actor, "角色": principal.role,
                      "结果": "PENDING_RECONCILIATION" if pending else "REJECTED",
-                     "错误类型": type(error).__name__, "说明": message, "记录时间": int(time.time() * 1000)}
+                     "错误类型": ('CONFLICT' if isinstance(error, Conflict) else
+                                  'RULE_REJECTED' if isinstance(error, RuleError) else
+                                  'UPSTREAM_UNCONFIRMED' if isinstance(error, ProbeError) else 'OPERATION_ERROR'),
+                     "说明": message, "记录时间": int(time.time() * 1000)}
             queued = self.queued()
             queued.append(event)
             save(self.path, queued)  # durable BEFORE attempting a remote audit write
             self._flush_locked()
 
 
+# 在 Workflow 外增加审计保障，不替代真实账号的 PermissionGate。
 class AuditedWorkflow(Workflow):
     def __init__(self, store, allocator=None, audit=None, restored_batch_aliases=None):
         super().__init__(store, allocator, restored_batch_aliases)
         self.audit = audit or Audit(store)
 
+    # 先补投遗留审计，再执行业务；失败审计仍无法送达时阻止新的变更，防止审计丢失。
     def submit(self, key, payload, principal, fail_at=None):
         # Unsent audit entries block new mutations; do not silently lose them.
         with writer_gate(), self.store.read_scope() if self.store else nullcontext():

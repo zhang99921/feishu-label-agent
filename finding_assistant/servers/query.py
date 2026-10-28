@@ -1,3 +1,4 @@
+# 未来只读 MCP 工具目录；仅注册查询工具，不能借此绕开批次和身份校验。
 """Query MCP server: no inventory mutations are registered."""
 from typing import Callable
 

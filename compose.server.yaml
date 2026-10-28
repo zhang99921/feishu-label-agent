@@ -1,0 +1,83 @@
+name: finding-assistant
+x-runtime: &runtime
+  image: finding-assistant:local
+  build:
+    context: .
+  init: true
+  restart: unless-stopped
+  read_only: true
+  user: "10001:10001"
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  tmpfs:
+    - /tmp:size=64m,mode=1777
+  volumes:
+    - type: bind
+      source: ./.env.server
+      target: /app/.env
+      read_only: true
+      bind:
+        create_host_path: false
+    - type: bind
+      source: ./server-logs
+      target: /logs
+      bind:
+        create_host_path: false
+  environment:
+    FINDING_ASSISTANT_LOG_DIR: /logs
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+  stop_grace_period: 45s
+
+services:
+  http:
+    <<: *runtime
+    cpus: "1.0"
+    mem_limit: 512m
+    ports:
+      - "127.0.0.1:8001:8001"
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health/live', timeout=3).close()"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+  sync:
+    <<: *runtime
+    profiles: [sync]
+    cpus: "1.0"
+    mem_limit: 768m
+    command: [python, worker.py, sync, --watch]
+  monitor:
+    <<: *runtime
+    profiles: [monitor]
+    cpus: "0.25"
+    mem_limit: 128m
+    command: [python, ops_tools.py, monitor, --config, /app/monitor-config.json, --watch]
+    volumes:
+      - type: bind
+        source: ./.env.server
+        target: /app/.env
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./monitor.server.json
+        target: /app/monitor-config.json
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./server-logs
+        target: /logs
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./monitor-state
+        target: /state
+        bind:
+          create_host_path: false

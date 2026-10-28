@@ -1,3 +1,5 @@
+# 文档协作者权限诊断：view=可阅读、edit=可编辑、full_access=可管理。
+# 这些文档权限不等同于业务角色，也不会自动映射成管理员/操作员/查询员。
 """Read direct document collaborator privileges; never infer a default role.
 
 Indirect group/link access and owner resolution are not implemented here. A
@@ -11,6 +13,7 @@ class DocumentAccessDirectory:
     def __init__(self,client):
         self.client = client
 
+    # 只识别明确的 openid 协作者项；返回 None 表示未查到直接授权，不等于无任何访问权限。
     def direct_permission(self,open_id):
         if not isinstance(open_id,str) or not open_id:
             raise AuthorizationUnavailable("verified user identity required")

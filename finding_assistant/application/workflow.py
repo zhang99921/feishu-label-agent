@@ -1,3 +1,7 @@
+# 库存流转核心：Store 读写飞书，Workflow 校验并编排入库、出库、转仓与恢复。
+# 货物单元按托盘管理；货物ID 是业务身份，FNSKU/PO 不能代替唯一托盘身份。
+# 流水先写 PREPARED（待完成），确认资源和库存落地后再写 DONE（已完成）。
+# 飞书多次 HTTP 写入不是数据库事务；这里只协调同一主机、同一状态目录的合作写入。
 """Controlled real-Feishu workflow experiment, NOT a deployable inventory system.
 
 All inventory and operation data lives in CODEX_TEST tables in Demo.
@@ -31,6 +35,7 @@ GATE = threading.RLock()
 _GATE_LOCAL = threading.local()
 
 
+# 数据版本、业务状态或幂等请求存在冲突；由 HTTP 层转换为 409。
 class Conflict(Exception):
     pass
 
@@ -45,6 +50,7 @@ def interrupt(message):
     raise Interrupted(message)
 
 
+# 底层流程使用的身份载体。真实请求必须先经过 AuthenticatedWorkflow，不能由客户端自行填写。
 @dataclass(frozen=True)
 class TestPrincipal:
     actor: str
@@ -52,6 +58,8 @@ class TestPrincipal:
     batch: str
 
 
+# 线程可重入锁 + 非阻塞本机文件锁：串行化合作写入；嵌套调用复用当前锁。
+# 不能阻止飞书页面人工修改，也不能协调不同主机。
 @contextmanager
 def writer_gate():
     with GATE:
@@ -88,6 +96,7 @@ def choice(name, *values):
     return field(name, 3, options=[{"name": value} for value in values])
 
 
+# 将飞书关联字段的不同响应格式统一为 record_id 列表；遇到未知格式直接报错。
 def links(value):
     """Normalize documented association response forms without guessing IDs."""
     if value is None:
@@ -108,6 +117,7 @@ def links(value):
     return result
 
 
+# 数据访问层：manifest 保存逻辑表名到 table_id 的映射；实际库存和流水保存在飞书。
 class Store:
     def __init__(self, client, manifest, manifest_path=None):
         self.client, self.manifest = client, manifest
@@ -116,6 +126,7 @@ class Store:
         self.cache_reads = True
         self._reads = threading.local()
 
+    # 单次请求内复用读结果，离开作用域立即清空；必须在写锁内使用，避免跨请求缓存旧库存。
     @contextmanager
     def read_scope(self):
         """Reuse complete lists only inside one serialized request; never across requests."""
@@ -135,6 +146,7 @@ class Store:
         if cache is not None:
             cache.clear()
 
+    # 在锁内并行获取互不依赖的表；全部完成后才发布缓存，不并行执行写入。
     def prefetch(self, keys):
         """Join independent reads before publishing any reusable request snapshot."""
         cache = getattr(self._reads, "cache", None)
@@ -149,6 +161,7 @@ class Store:
             rows = {key: future.result() for key, future in futures.items()}
         cache.update(deepcopy(rows))
 
+    # 逻辑表名示例：units=托盘库存、operations=流水、locations=仓库区域、codes=托盘码池。
     def table(self, key):
         value = self.manifest["tables"][key]
         if value == DEMO[1]:
@@ -183,12 +196,14 @@ class Store:
         return self.client.request("GET", self.path + "/" + self.table(key) +
                                    "/records/" + record_id)["data"]["record"]
 
+    # 发出更新前先清缓存：网络超时也可能意味着远端已经写入，不能继续沿用旧快照。
     def update(self, key, record_id, fields):
         # Invalidate before sending: a timeout may follow a successful remote write.
         self.invalidate_reads()
         return self.client.request("PUT", self.path + "/" + self.table(key) +
                                    "/records/" + record_id, {"fields": fields})["data"]["record"]
 
+    # 把稳定的远端 UUID 请求令牌先保存到本地，再创建记录；业务幂等仍需持久流水配合。
     def create(self, key, operation_key, fields):
         self.invalidate_reads()
         # Immediate UUID replay has been verified separately; this does not promise
@@ -205,6 +220,7 @@ class Store:
                                    {"fields": fields}, {"client_token": token,
                                    "ignore_consistency_check": "false"})["data"]["record"]
 
+    # 按业务标识查找唯一记录；发现重复就停止，避免随意选择一行造成串货。
     def named(self, key, name_field, name):
         found = [row for row in self.records(key) if text(row["fields"].get(name_field)) == name]
         if len(found) > 1:
@@ -214,6 +230,8 @@ class Store:
     def seed(self, key, name_field, name, fields):
         return self.named(key, name_field, name) or self.create(key, "seed:" + name, fields)
 
+    # 将飞书中文字段转成业务快照：state 状态、version 版本、location 仓库关联、batch 批次关联。
+    # remaining_boxes 为剩余箱数，last_operation 用于追踪最后一次变更。
     def snapshot(self, unit):
         fields = unit["fields"]
         value = {"state": text(fields.get("状态")), "version": int(fields.get("记录版本", 0)),
@@ -224,6 +242,7 @@ class Store:
                          quantity_unit=text(fields["计量单位"]), quantity_verified=fields.get("数量已核实") is True)
         return value
 
+    # 只更新快照包含的库存字段，并记录经过服务端核实的操作人和时间。
     def apply_snapshot(self, record_id, value, actor, recorded_at):
         fields = {"状态": value["state"], "记录版本": value["version"],
                     "当前库位": value["location"], "最近操作ID": value["last_operation"],
@@ -233,6 +252,7 @@ class Store:
         self.update("units", record_id, fields)
 
 
+# 验证辅助入口：按运行标识查找或创建 CODEX_TEST 表；不会自动迁移成生产表。
 def bootstrap(client):
     """Reconcile table names before creation; never blindly recreate after timeout."""
     manifest_path = ROOT / "workflow_state.local.json"
@@ -279,6 +299,7 @@ def bootstrap(client):
         return store
 
 
+# 业务编排层；调用方须提供已授权身份，托盘码分配通过可选 allocator 协作。
 class Workflow:
     def __init__(self, store, allocator=None, restored_batch_aliases=None):
         self.store = store
@@ -287,13 +308,17 @@ class Workflow:
         self.restored_batch_aliases = restored_batch_aliases or {}
         self.parallel_queries = True
 
+    # 把请求内容、操作人和批次范围一起做摘要，阻止同一幂等键被其他请求或账号复用。
     @staticmethod
     def fingerprint(payload, principal):
         return hashlib.sha256(json.dumps({"request": payload, "actor": principal.actor,
                 "scope": principal.batch}, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
+    # 恢复一条持久流水：已 DONE 就返回原结果；待完成只接受库存等于 before 或 after。
+    # 若人工修改使库存偏离两种快照，停止恢复，避免覆盖新数据。
     def _recover(self, operation, fail_at=None):
         fields = operation["fields"]
+        # 已完成请求只重放结果，绝不把旧 after 快照再次写回库存。
         if text(fields["阶段"]) == "DONE":
             return json.loads(text(fields["结果JSON"]))
         unit_id = links(fields["货物"])[0]
@@ -303,6 +328,7 @@ class Workflow:
         if current != before and current != after:
             raise Conflict("manual or uncoordinated changes block recovery")
         resources = json.loads(text(fields.get("资源变更JSON") or "[]") or "[]")
+        # 码池计划与库存快照共用一条持久流水；先恢复码池，再确认托盘库存。
         if resources:
             if not self.allocator:
                 raise Conflict("this operation requires the pallet-code recovery handler")
@@ -313,6 +339,7 @@ class Workflow:
             self.store.apply_snapshot(unit_id, after, text(fields["操作人"]), fields["准备时间"])
         elif current != after:
             raise Conflict("manual or uncoordinated changes block recovery")
+        # 不把 PUT 的成功响应单独当作完成依据，必须回读确认目标快照。
         if self.store.snapshot(self.store.get("units", unit_id)) != after:
             raise ProbeError("unit write not confirmed; remain pending")
         if fail_at == "after_unit":
@@ -329,6 +356,8 @@ class Workflow:
             interrupt("injected response loss after completed remote operation")
         return result
 
+    # 写入主流程：验证身份/批次 → 检查幂等流水 → 恢复待办 → 校验版本/状态 → 记录计划 → 执行并回读确认。
+    # fail_at 仅供故障注入测试，用来模拟断网或进程中断。
     def submit(self, key, payload, principal, fail_at=None):
         if not isinstance(payload, dict):
             raise Conflict("invalid request shape")
@@ -363,16 +392,19 @@ class Workflow:
             # physical Feishu record-ID remap, while checking the mapped live scope.
             digest_principal = TestPrincipal(principal.actor, principal.role, payload["batch"])
             digest = self.fingerprint(payload, digest_principal)
+            # 先检查相同幂等键，再做新操作的版本校验；已成功请求重试不会被旧版本误拒绝。
             previous = self.store.named("operations", "请求幂等键", key)
             if previous:
                 if text(previous["fields"]["请求摘要"]) != digest:
                     raise Conflict("idempotency key reused with a different request or actor")
                 return self._recover(previous)
             # Pending remote work must be reconciled before any new transition.
+            # 新操作之前先处理遗留 PREPARED，防止后续写入让旧操作无法安全恢复。
             for pending in self.store.records("operations"):
                 if text(pending["fields"].get("阶段")) != "DONE":
                     self._recover(pending)
             before = self.store.snapshot(self.store.get("units", unit["record_id"]))
+            # 此版本检查依赖本机合作写锁，并不是飞书提供的原子条件更新。
             if before["version"] != payload["expected_version"]:
                 raise Conflict("stale version; refresh before confirming")
             location = payload["location"]
@@ -432,11 +464,13 @@ class Workflow:
             if self.allocator:
                 resources = self.allocator.plan(unit["record_id"], before, after, operation_id, prepared_at)
                 operation_fields["资源变更JSON"] = json.dumps(resources, ensure_ascii=False)
+            # 先持久化完整前后快照和码池计划；从这里之后发生超时都应沿用原键核实。
             operation = self.store.create("operations", key, operation_fields)
             if fail_at == "after_prepare":
                 interrupt("injected stop after durable remote preparation")
             return self._recover(operation, fail_at)
 
+    # 查询返回观察快照；存在未完成流水时标记 PENDING_RECONCILIATION，不能当作已确认库存。
     def query(self, unit_name, principal):
         if principal.role not in ("operator", "query", "admin"):
             raise PermissionError("test principal cannot query")
@@ -458,6 +492,7 @@ class Workflow:
             return result
 
 
+# 从本地配置获取应用令牌；它只提供应用访问能力，不能代替员工登录和业务授权。
 def connect(*, pooled=True):
     config = json.loads((ROOT / "config.local.json").read_text(encoding="utf-8-sig"))
     if pooled:

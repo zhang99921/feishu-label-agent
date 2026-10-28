@@ -1,3 +1,5 @@
+# 早期接口验证工具；目标白名单仅从环境变量读取，不内置任何租户或表标识。
+# tenant_access_token 是应用调用凭据，不是员工登录会话；网络异常不会自动重试写入。
 """Real HTTP feasibility probe, restricted to the user-authorized Demo table.
 
 No deletes, no schema changes, no inventory workflow claims. Local state retains
@@ -17,7 +19,8 @@ from urllib.request import Request, build_opener, HTTPRedirectHandler
 
 from finding_assistant.infrastructure.paths import STATE_DIR
 
-DEMO = ("R4XEbXH12agWO6scaO7ciAC8nUc", "tblrAufM4mVvQB8x")
+DEMO = (os.environ.get("FEISHU_LEGACY_APP_TOKEN", ""),
+        os.environ.get("FEISHU_LEGACY_TABLE_ID", ""))
 ORIGIN = "https://open.feishu.cn/open-apis"
 
 
@@ -30,6 +33,7 @@ class NoRedirect(HTTPRedirectHandler):
         raise ProbeError("Redirect refused: credentials stay at the configured API origin")
 
 
+# 本地 JSON 先写临时文件并 fsync，再替换目标文件，减少中断导致状态文件写一半的风险。
 def save(path, value):
     temporary = path.with_suffix(path.suffix + ".tmp")
     with temporary.open("w", encoding="utf-8") as stream:
@@ -41,12 +45,13 @@ def save(path, value):
 
 class Client:
     def __init__(self, config):
-        if (config.get("app_token"), config.get("table_id")) != DEMO:
+        if not all(DEMO) or (config.get("app_token"), config.get("table_id")) != DEMO:
             raise ProbeError("Only the authorized Demo table is allowed")
         self.config = config
         self.token = None
         self.opener = build_opener(NoRedirect())
 
+    # 统一 JSON 请求与错误处理；超时只表示结果未确认，不能据此认定远端写入失败。
     def request(self, method, path, body=None, query=None):
         url = ORIGIN + path
         if query:
@@ -60,14 +65,11 @@ class Client:
             with self.opener.open(request, timeout=20) as response:
                 result = json.load(response)
         except HTTPError as error:
-            # Retain only API error code/message; never log full error bodies or credentials.
+            # 上游msg可能包含任意请求数据，仅保留整数码，不依赖有限密钥替换。
             try:
                 details = json.load(error)
-                message = str(details.get("msg", ""))
-                for secret in (self.config.get("app_secret"), self.token):
-                    if secret:
-                        message = message.replace(secret, "[REDACTED]")
-                detail = f"; API code={details.get('code')}; {message[:1200]}"
+                code = details.get('code') if isinstance(details, dict) else None
+                detail = f'; API code={code}' if type(code) is int and abs(code) <= 10**12 else ''
             except (ValueError, TypeError):
                 detail = ""
             raise ProbeError(f"HTTP {error.code}{detail}; no success confirmed") from None
@@ -78,9 +80,12 @@ class Client:
         if not isinstance(result, dict):
             raise ProbeError("Invalid API response shape; no success confirmed")
         if result.get("code") != 0:
-            raise ProbeError(f"Feishu API code={result.get('code')}; no success confirmed")
+            code = result.get('code')
+            detail = f'; API code={code}' if type(code) is int and abs(code) <= 10**12 else ''
+            raise ProbeError(f'Feishu API rejected{detail}; no success confirmed')
         return result
 
+    # 获取应用令牌供飞书接口调用；员工权限由单独的 OAuth 与 PermissionGate 校验。
     def login(self):
         if not self.config.get("app_id") or not self.config.get("app_secret"):
             raise ProbeError("Fill the ignored config.local.json before HTTP tests")
@@ -119,6 +124,7 @@ class Client:
                             {"fields": fields})["data"]["record"]
 
 
+# 把飞书富文本片段列表规范为字符串，供业务字段比较使用。
 def text(value):
     if isinstance(value, list):
         return "".join(item.get("text", "") for item in value if isinstance(item, dict))
@@ -135,7 +141,7 @@ def make_fields(schema, key):
             raise ProbeError(f"Missing expected Demo field: {name}")
         field = by_name[name]
         if field["type"] not in (1, 2, 3):
-            raise ProbeError(f"Unsupported field type for {name}: {field['type']}")
+            raise ProbeError(f"Unsupported Demo field type: {name}")
         if name == "箱规数量" and field["type"] == 1:
             expected[name] = "50"
         if field["type"] == 3:
@@ -145,6 +151,7 @@ def make_fields(schema, key):
     return expected
 
 
+# 早期真实接口验证：只有显式 write=True 才写入标记测试记录；不是本地测试总入口。
 def run(client, root, write):
     report = {"mode": "REAL_FEISHU_HTTP", "authentication": "PENDING", "tests": {},
               "inventory_workflow_verified": False, "records_deleted": 0}

@@ -1,3 +1,5 @@
+# 未来 MCP 适配契约：这里只注册工具，不启动传输、不读取密钥，也不引入 MCP SDK。
+# 适配器通过 ServiceRuntime 复用后端权限、幂等和业务流程。
 """Optional MCP registration contract; core application has no MCP dependency."""
 from dataclasses import dataclass
 from typing import Callable, Protocol
@@ -17,6 +19,7 @@ class MutationTool:
     description: str
 
 
+# 每个工具通过独立闭包固定动作，避免循环闭包使所有工具执行最后一个动作。
 def register_mutations(server: ToolRegistry, runtime: ServerRuntime, tools: tuple[MutationTool,...]):
     def register(spec):
         # A separate closure per tool keeps its fixed action; callers cannot switch it.

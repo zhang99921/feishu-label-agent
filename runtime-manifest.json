@@ -1,0 +1,841 @@
+{
+  "schema_version": 1,
+  "kind": "development_runtime",
+  "build_id": "20261028T063646Z",
+  "project_version": "2.0.0",
+  "inventory_posting_enabled": false,
+  "staff_acceptance_completed": false,
+  "server_deployed": false,
+  "files": [
+    {
+      "path": ".dockerignore",
+      "bytes": 467,
+      "sha256": "5b71dacd6d5911e03adc9d2bb0c1f6e75789e781a77303a7993799d8f94dda74"
+    },
+    {
+      "path": ".env.example",
+      "bytes": 4217,
+      "sha256": "9035e7be04213e5360c9587f82c8cda492853253ed9b74b27094cd8eeab608f3"
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 163,
+      "sha256": "d4f9a4f6afd58cf1abfdc9b03422147feb62a754296e4c0768a197611d2d20cd"
+    },
+    {
+      "path": "Dockerfile",
+      "bytes": 545,
+      "sha256": "d0497472519daa4433ca91a0673030f854ab677d1be36aca738199579e422a56"
+    },
+    {
+      "path": "README.txt",
+      "bytes": 42768,
+      "sha256": "d00599193fb873897193377a4e874512845bb35766a052fbe8ed8cd9e6eb452c"
+    },
+    {
+      "path": "SQL检索权限与行列范围说明.txt",
+      "bytes": 7812,
+      "sha256": "1beaa0fff6e61f3e03e554e67f1456617b7807f824c8ff62987769ca820fde93"
+    },
+    {
+      "path": "compose.server.yaml",
+      "bytes": 1948,
+      "sha256": "4f27bb2cd506c23d596404a646424a13d9beeb9dcc340d1d48f011d6af641f6d"
+    },
+    {
+      "path": "finding_assistant/__init__.py",
+      "bytes": 42,
+      "sha256": "31303d0b0b60a25626ec29cf9dc58e4b5e0d0579c87a0233bbf1624943a0667e"
+    },
+    {
+      "path": "finding_assistant/adapters/__init__.py",
+      "bytes": 42,
+      "sha256": "31303d0b0b60a25626ec29cf9dc58e4b5e0d0579c87a0233bbf1624943a0667e"
+    },
+    {
+      "path": "finding_assistant/adapters/feishu/__init__.py",
+      "bytes": 42,
+      "sha256": "31303d0b0b60a25626ec29cf9dc58e4b5e0d0579c87a0233bbf1624943a0667e"
+    },
+    {
+      "path": "finding_assistant/adapters/feishu/base_export.py",
+      "bytes": 1945,
+      "sha256": "616009a76171ebce1a226d92021283fa87317499e673fe5f9b0e9eee4142beb9"
+    },
+    {
+      "path": "finding_assistant/adapters/feishu/business_backup_reader.py",
+      "bytes": 4043,
+      "sha256": "3150553525d72827aa3ee3ad37b2457cedff5e47313e8a59a0e65ef38f640564"
+    },
+    {
+      "path": "finding_assistant/adapters/feishu/business_tables.py",
+      "bytes": 13695,
+      "sha256": "c3195a87de4717d2ccd4eba180ea4f2888b0b9780cc853a612df457d5989e259"
+    },
+    {
+      "path": "finding_assistant/adapters/feishu/client.py",
+      "bytes": 10662,
+      "sha256": "2759d40f95dbaef6ac23f2675c8fbb3ff6ffa981dfe743cbab18741fa28951b5"
+    },
+    {
+      "path": "finding_assistant/adapters/feishu/document_access.py",
+      "bytes": 2056,
+      "sha256": "859f7f97f42fac22fd3e83f9c736c69a51141e0591b886abd83090ee41de3f5b"
+    },
+    {
+      "path": "finding_assistant/adapters/feishu/existing_forms.py",
+      "bytes": 9659,
+      "sha256": "1811de86b32f5a0befca2f8d0bd39fd367fc1fec5a33da0d687a64afaacd8619"
+    },
+    {
+      "path": "finding_assistant/adapters/feishu/incremental_reader.py",
+      "bytes": 6186,
+      "sha256": "42caee6f6e43d3ff0087eafbd55c48657612bcb2f02e7bb0ba8978e57670d8b1"
+    },
+    {
+      "path": "finding_assistant/adapters/feishu/inventory_access.py",
+      "bytes": 14979,
+      "sha256": "d683bda33cd390fda056e6887cf3ca537a9f6343b91a5d2ae08ea6d88ddbd93f"
+    },
+    {
+      "path": "finding_assistant/adapters/feishu/pooled_client.py",
+      "bytes": 3956,
+      "sha256": "622ca1d7e5c96bc311c23aea3f835d4f02909d2935bbb7c1c87d1cf207abe2ce"
+    },
+    {
+      "path": "finding_assistant/adapters/feishu/roles.py",
+      "bytes": 3223,
+      "sha256": "c8db7112ba29b7781a71cd14a25ae99281e6173ec20cd4dac25a8be3e374a462"
+    },
+    {
+      "path": "finding_assistant/adapters/feishu/scan_access.py",
+      "bytes": 5062,
+      "sha256": "7c3c7879fff44f1f17e87583470bd9bf46ce0fcdfe2e148bcd7e682ccb2d5666"
+    },
+    {
+      "path": "finding_assistant/adapters/feishu/sql_visibility.py",
+      "bytes": 5494,
+      "sha256": "45676ab06032dee3ddaeab8b7423d0dd8ec009629373b93b38fff6208c435065"
+    },
+    {
+      "path": "finding_assistant/application/__init__.py",
+      "bytes": 42,
+      "sha256": "31303d0b0b60a25626ec29cf9dc58e4b5e0d0579c87a0233bbf1624943a0667e"
+    },
+    {
+      "path": "finding_assistant/application/administration.py",
+      "bytes": 8160,
+      "sha256": "8513045c71abb3edb41669bd0a55eec588bac38135648737f1729225acea5f29"
+    },
+    {
+      "path": "finding_assistant/application/background_inventory.py",
+      "bytes": 7618,
+      "sha256": "01df4d557d9b150e21a90c1e7c3c6e1768c98ab2cb0994acdda9ff2de9f33b13"
+    },
+    {
+      "path": "finding_assistant/application/bulk_inventory.py",
+      "bytes": 4656,
+      "sha256": "494e1d804926b514cb8d44eb6d986af906fcceaefb1f5e05d1c2eea8c8be4004"
+    },
+    {
+      "path": "finding_assistant/application/business_sync_worker.py",
+      "bytes": 3653,
+      "sha256": "b569ab3395138cdfe767544307c5c62a4fd50b316885e9b6816b0be64bc57553"
+    },
+    {
+      "path": "finding_assistant/application/inbound_validation.py",
+      "bytes": 1766,
+      "sha256": "2d1ba2d847cfd5f68c76155e3fe9262638e485c81926d823887644c3333aca04"
+    },
+    {
+      "path": "finding_assistant/application/intake_worker.py",
+      "bytes": 2329,
+      "sha256": "2065b47d423aa01dae79f5ade447461881a688f260d0f1acef40200ce17a930a"
+    },
+    {
+      "path": "finding_assistant/application/inventory_execution.py",
+      "bytes": 18796,
+      "sha256": "6b4fc6579d5be19b3b96d658572e915173ce78f6318f74e9063b1bd1abe1d34e"
+    },
+    {
+      "path": "finding_assistant/application/pallets.py",
+      "bytes": 8395,
+      "sha256": "ba6eb8fbddd04605c0237d7c6d672bc6002f057c8cf3640c2e22caa9d2da32f6"
+    },
+    {
+      "path": "finding_assistant/application/position_preparation.py",
+      "bytes": 5469,
+      "sha256": "0ab8b92539f472cd6ae6a05c7f18cdd24dde698f0428b94dc499269e1ede614e"
+    },
+    {
+      "path": "finding_assistant/application/scan_ingestion.py",
+      "bytes": 1078,
+      "sha256": "4354a87b06939d503da0c27b25b0525d826bce6829e4dae177958519308b462c"
+    },
+    {
+      "path": "finding_assistant/application/scan_service.py",
+      "bytes": 4412,
+      "sha256": "814746c257ddbe9c86ccf420cc88d418ebc7c1feb604bcd899d28fbff937b5f6"
+    },
+    {
+      "path": "finding_assistant/application/service.py",
+      "bytes": 2409,
+      "sha256": "5c01e9c426da4dabc57f55e58f749d17f99aebf686e313d212da94930f0539ee"
+    },
+    {
+      "path": "finding_assistant/application/sql_inventory_query.py",
+      "bytes": 5404,
+      "sha256": "46a6eb7e259ddddfa6ba5ab5e0608668176885d37a0c2d3333e6944612beef4c"
+    },
+    {
+      "path": "finding_assistant/application/task_recovery.py",
+      "bytes": 6222,
+      "sha256": "f67c741d91d10c7406e42733fbc5b960f318bcd444bb189f6051bd9b75ce0cc2"
+    },
+    {
+      "path": "finding_assistant/application/transfer_preparation.py",
+      "bytes": 3541,
+      "sha256": "67755d48d69b5cfc3c94adbabddfdca3f7cf4350cf5720624768dea9f5b030c2"
+    },
+    {
+      "path": "finding_assistant/application/validation_feedback.py",
+      "bytes": 3710,
+      "sha256": "b88e9ddfb5be13a33c9fb1db6c3825bae22c891a086fc06225fc0337670af946"
+    },
+    {
+      "path": "finding_assistant/application/warehouse_tasks.py",
+      "bytes": 8140,
+      "sha256": "c2e77f85e29dd4cd8085430b83496b8fcc4ba997ca17e23435e013a380df3dc7"
+    },
+    {
+      "path": "finding_assistant/application/workflow.py",
+      "bytes": 27699,
+      "sha256": "2d4d9eb17e011ab6525b503e2dc7ad02c26903e0a3c69b5def22d1bb5a301602"
+    },
+    {
+      "path": "finding_assistant/domain/__init__.py",
+      "bytes": 42,
+      "sha256": "31303d0b0b60a25626ec29cf9dc58e4b5e0d0579c87a0233bbf1624943a0667e"
+    },
+    {
+      "path": "finding_assistant/domain/inbound_rules.py",
+      "bytes": 7606,
+      "sha256": "7814213d7f1eb353bb2491a0d23dd4f51cbb6f42422b52e1ce32a4a5e88e85c7"
+    },
+    {
+      "path": "finding_assistant/domain/inventory_posting.py",
+      "bytes": 10752,
+      "sha256": "0179f7c696e5acc9bdbb0e60aa1854d41d0be208962e842caf791520a3c5b9a7"
+    },
+    {
+      "path": "finding_assistant/domain/positions.py",
+      "bytes": 7174,
+      "sha256": "ec353a285cae0020af30dbe25d2914e0c66579053c889710b6d4feb38d9bfd11"
+    },
+    {
+      "path": "finding_assistant/domain/public_locations.py",
+      "bytes": 946,
+      "sha256": "3b469e2f6cfbe5a48098a9f1c16b18275c9c884c6b01c7f5f7bdde3edc1780c1"
+    },
+    {
+      "path": "finding_assistant/domain/quantity_rules.py",
+      "bytes": 3222,
+      "sha256": "7c7fe7b8516b7cef041d87a8268cdd47683fa21225dec3edc51085a9e5093d06"
+    },
+    {
+      "path": "finding_assistant/domain/scan_submission.py",
+      "bytes": 5148,
+      "sha256": "0c223b212fa407164d8a115387adfb5b5ea2c1c1c926894ddc71a03aa731fc8c"
+    },
+    {
+      "path": "finding_assistant/domain/transfer.py",
+      "bytes": 3152,
+      "sha256": "6632e4160bc62433cd78d7055c9657045f230b7a903757e97e4748d70a486eaf"
+    },
+    {
+      "path": "finding_assistant/domain/validation_rejection.py",
+      "bytes": 1234,
+      "sha256": "017a647b504150a6e0deac5aa8e7e3d539bf77aa9b2baa5a6bd5e6a30a8b8ff3"
+    },
+    {
+      "path": "finding_assistant/infrastructure/__init__.py",
+      "bytes": 61,
+      "sha256": "f07eea6acc3561c3278764188307ac8c566391b50f41d012e44f8f0a9f1bedca"
+    },
+    {
+      "path": "finding_assistant/infrastructure/attention_cursor.py",
+      "bytes": 2191,
+      "sha256": "be9e4ec17707d34ffdeb31c09050e5e5ee75c056605cf6171013480b48336cee"
+    },
+    {
+      "path": "finding_assistant/infrastructure/backup_storage.py",
+      "bytes": 4860,
+      "sha256": "e67fc41def88ff36341771d88ca60d437febe7d346e73936fe87d1f755b62c3c"
+    },
+    {
+      "path": "finding_assistant/infrastructure/business_backups.py",
+      "bytes": 10491,
+      "sha256": "06bcd23537b2f8e0a3a6c1ab7f7ec358339425ad32842e8dc74e718e74b45889"
+    },
+    {
+      "path": "finding_assistant/infrastructure/business_sync.py",
+      "bytes": 15281,
+      "sha256": "46266f34d06783e15073cbdcd55010d64d156e99f42a2f7e37f27dcb5cf3c7db"
+    },
+    {
+      "path": "finding_assistant/infrastructure/diagnostic_bundle.py",
+      "bytes": 11261,
+      "sha256": "77d2e26db540fc100360df7000010819f29cfb4ce890935e684c854dd164a613"
+    },
+    {
+      "path": "finding_assistant/infrastructure/diagnostics.py",
+      "bytes": 1225,
+      "sha256": "325cd36f3c7ac2c430b01a6ad7e5137cd6394873861ad349062ebbe82b7d975f"
+    },
+    {
+      "path": "finding_assistant/infrastructure/environment.py",
+      "bytes": 1237,
+      "sha256": "aae7f9c8da5276e24962cce101719891d64294c5a35ca46cad32269538868eb0"
+    },
+    {
+      "path": "finding_assistant/infrastructure/http_client.py",
+      "bytes": 403,
+      "sha256": "2854c0de23b3e64c88f48f183a2079255975c39227d0c9f8be10ce4a2499a301"
+    },
+    {
+      "path": "finding_assistant/infrastructure/inventory_details.py",
+      "bytes": 7469,
+      "sha256": "335aeeac99083e44e2cddbf21e9eca82b339d43edcddce83c76017911a90430d"
+    },
+    {
+      "path": "finding_assistant/infrastructure/inventory_execution_store.py",
+      "bytes": 16901,
+      "sha256": "d2b58b38551464848a5f069cfe16f1e2cf15926295ff7d0f44c2fef246cd71ef"
+    },
+    {
+      "path": "finding_assistant/infrastructure/local_lock.py",
+      "bytes": 888,
+      "sha256": "f368b7bc30e69ff49fa8a5400fd54c383e6b8ea07ce6b8dde0d3128abae89dd2"
+    },
+    {
+      "path": "finding_assistant/infrastructure/log_archives.py",
+      "bytes": 5000,
+      "sha256": "ff531e334782b93c1d989b695985cf9d3b2ba51dac599399058f74e9d04fdd37"
+    },
+    {
+      "path": "finding_assistant/infrastructure/log_download.py",
+      "bytes": 9146,
+      "sha256": "51588bd1e83c689040366117e1af2cd0c8fb0b30274f69f861b671a55ab9cb69"
+    },
+    {
+      "path": "finding_assistant/infrastructure/log_exchange.py",
+      "bytes": 7613,
+      "sha256": "30a347159014e53a650f8b9a3cb341bd431b80c1c27c541e576583e15a6afda8"
+    },
+    {
+      "path": "finding_assistant/infrastructure/monitoring.py",
+      "bytes": 8995,
+      "sha256": "68c0469b6c918deabb6f18b0e291d96f9501b1822ddafac5092e9473d150e6e6"
+    },
+    {
+      "path": "finding_assistant/infrastructure/operations_queries.py",
+      "bytes": 20608,
+      "sha256": "13abe5732d2beaaa85456f701999e4115db7c51401538024aab5bf45759742ae"
+    },
+    {
+      "path": "finding_assistant/infrastructure/paths.py",
+      "bytes": 682,
+      "sha256": "cb7e2ea6b1b3a6c40512b2ba68e27192155c165cb1df9f863f080940feb142a2"
+    },
+    {
+      "path": "finding_assistant/infrastructure/performance.py",
+      "bytes": 2271,
+      "sha256": "2593cd510d48ada9a82d73ae9cd6b93d5be6827acc66ba7c02f1277b9e0c8d6a"
+    },
+    {
+      "path": "finding_assistant/infrastructure/performance_report.py",
+      "bytes": 3983,
+      "sha256": "83f281d1459898bad3ab579f5557cd1d79796d50a13cf1e454b6b98a3832357c"
+    },
+    {
+      "path": "finding_assistant/infrastructure/position_reservations.py",
+      "bytes": 18097,
+      "sha256": "f97275d6d45862fec3c4a4c0158c22ebc9996ad04d21beedb64f713f829964f8"
+    },
+    {
+      "path": "finding_assistant/infrastructure/postgres_operations.py",
+      "bytes": 19725,
+      "sha256": "d424277b64e69b2ee7f60c2f36f6b55dd32cb01e23cd3900b0965453adb13f67"
+    },
+    {
+      "path": "finding_assistant/infrastructure/postgres_tasks.py",
+      "bytes": 5726,
+      "sha256": "f6a48d7a100a4ca80ec872fcb1c0d04d347274dbde38b2376a0b745c24b7eed7"
+    },
+    {
+      "path": "finding_assistant/infrastructure/preflight.py",
+      "bytes": 8060,
+      "sha256": "d05fa16f5325f863f338208ce0f9bf5ac2e7511969feaac1c44983bdbd14b749"
+    },
+    {
+      "path": "finding_assistant/infrastructure/replica_integrity.py",
+      "bytes": 7441,
+      "sha256": "83ea5d950b1ae232ec311452c0c407110cb3d2bc1c44ae678c25d0c5e0f05093"
+    },
+    {
+      "path": "finding_assistant/infrastructure/request_scope.py",
+      "bytes": 636,
+      "sha256": "73cb0274a01d85fd263de5c58053b2b995fc0e5b8c83d092972d97ec568a3989"
+    },
+    {
+      "path": "finding_assistant/infrastructure/runtime_logging.py",
+      "bytes": 4977,
+      "sha256": "ec110f99299023f7ba456be5ccf1d717146a29c00b479f68bcb7176e864e0959"
+    },
+    {
+      "path": "finding_assistant/infrastructure/scoped_inventory_queries.py",
+      "bytes": 7690,
+      "sha256": "1f5433ea8c7dc6fce84b6db798238a791fb60a2d6bda947137928a7d70e106f4"
+    },
+    {
+      "path": "finding_assistant/infrastructure/shutdown.py",
+      "bytes": 791,
+      "sha256": "a16d315562fb1e7522919904ad878a27775de474f69924b1b2c05286380ec98a"
+    },
+    {
+      "path": "finding_assistant/infrastructure/sql/001_scan_tasks.sql",
+      "bytes": 1259,
+      "sha256": "e3564b3658dc951a0104418571f912790ef16323ad5d6cc5fd065ea41893fc4e"
+    },
+    {
+      "path": "finding_assistant/infrastructure/sql/002_identity_operations.sql",
+      "bytes": 2887,
+      "sha256": "d0ce68388a24fdac84c01233162c9dd861e68c9af56a01157ea03bf8d309c2c0"
+    },
+    {
+      "path": "finding_assistant/infrastructure/sql/003_location_reservations.sql",
+      "bytes": 1301,
+      "sha256": "cf139f5aa2d678d1668c15a29c4a72046a4f75f49ba0c077c2f6159f8590a7a8"
+    },
+    {
+      "path": "finding_assistant/infrastructure/sql/004_session_refresh.sql",
+      "bytes": 1069,
+      "sha256": "310e13c82dd5d401dae414db717cc1f9bc4016f6487a05333f8b0dc455daac4a"
+    },
+    {
+      "path": "finding_assistant/infrastructure/sql/005_business_backups.sql",
+      "bytes": 2296,
+      "sha256": "ad03b5dec425db88c01ff4ccd7383af028423b201e819a5da040b676dab4b67a"
+    },
+    {
+      "path": "finding_assistant/infrastructure/sql/006_position_reservations.sql",
+      "bytes": 2835,
+      "sha256": "603c39aefc3cd47dfa00b665288436476460755c16a165805212d5de75789bce"
+    },
+    {
+      "path": "finding_assistant/infrastructure/sql/007_inventory_execution.sql",
+      "bytes": 2587,
+      "sha256": "3935f06b834edb07d16ce19d5c6ac41abe0e0d848797a9566a8a5f044f4f3ed6"
+    },
+    {
+      "path": "finding_assistant/infrastructure/sql/008_business_sync.sql",
+      "bytes": 741,
+      "sha256": "7633f274188ac771549010cd84a1985a8d67fc0c2990fc36785e66ec1e8fd884"
+    },
+    {
+      "path": "finding_assistant/infrastructure/sql/009_query_visibility.sql",
+      "bytes": 2030,
+      "sha256": "680a247abbc668eb515b9b9ad51a7ec9c53116eff44bf466e5b25c44d585e4d7"
+    },
+    {
+      "path": "finding_assistant/infrastructure/sql/010_incremental_sync.sql",
+      "bytes": 347,
+      "sha256": "5ecbaace3825fa828f398d8b0f4dbcbd689cfc61e5d8504ec5492d1cd635719b"
+    },
+    {
+      "path": "finding_assistant/infrastructure/sql/011_validation_feedback.sql",
+      "bytes": 1071,
+      "sha256": "67b568f9c45f28caa017165a96e17460b3d01c80b3b6f956b7fe88d03881fd0d"
+    },
+    {
+      "path": "finding_assistant/infrastructure/sql/012_partial_row_compatibility.sql",
+      "bytes": 747,
+      "sha256": "d1b2ef4b7480b3a594cabba32e45570b65ccfe5db66540a8eef1ed5ac68438a6"
+    },
+    {
+      "path": "finding_assistant/infrastructure/sql/013_warehouse_tasks.sql",
+      "bytes": 851,
+      "sha256": "ebdf0c2f2dfb03820eba0e483c72d97996835b5a66d028d81754d5438301f410"
+    },
+    {
+      "path": "finding_assistant/infrastructure/sql/__init__.py",
+      "bytes": 79,
+      "sha256": "4384cdf3eb3c6b9d72aedba524daff6dcfccb368afc0753797294a180e6278c5"
+    },
+    {
+      "path": "finding_assistant/infrastructure/streaming_backups.py",
+      "bytes": 11764,
+      "sha256": "cfe09bf5b70deb4bc608e64b0bb0ca4524bcac0786d84b764e917f753e3465fd"
+    },
+    {
+      "path": "finding_assistant/infrastructure/transfer_reservations.py",
+      "bytes": 6072,
+      "sha256": "2ba399a94425426e499b1859144124e12ace546aab74ca3c3a5460ad5926693b"
+    },
+    {
+      "path": "finding_assistant/infrastructure/validation_feedback_store.py",
+      "bytes": 5722,
+      "sha256": "7e76c08300278a10ef2ca07ebde4114379eb759feaaab3c1c55e0397ebb72a1c"
+    },
+    {
+      "path": "finding_assistant/infrastructure/warehouse_tasks.py",
+      "bytes": 7694,
+      "sha256": "4cb49b4dd8c8acd3e583e968711b2ad15e499bf5960c5bcf16fe96b22ff74b9c"
+    },
+    {
+      "path": "finding_assistant/interfaces/__init__.py",
+      "bytes": 74,
+      "sha256": "78db4b4f5f2f248c56bddb592a4da795eb18bebe86259ff0cb876f13b8517d37"
+    },
+    {
+      "path": "finding_assistant/interfaces/http/__init__.py",
+      "bytes": 47,
+      "sha256": "6ea0825567d6a6cb9a2853b6b4ab851c433c41593619bb4271de6908c377430b"
+    },
+    {
+      "path": "finding_assistant/interfaces/http/__main__.py",
+      "bytes": 2227,
+      "sha256": "f3aa247953e90df3a65b37fb43aefb85e995784a3db7e1ca4682d7af014d5d4c"
+    },
+    {
+      "path": "finding_assistant/interfaces/http/app.py",
+      "bytes": 16581,
+      "sha256": "19531b28574eebaf7ec85426023b635736b0ea7ac0b0043be04d7a3cba31cd58"
+    },
+    {
+      "path": "finding_assistant/interfaces/http/mobile.py",
+      "bytes": 1815,
+      "sha256": "754c52912b9b729efecee7896aab7bfdb0c601f03bf3241b6f059bdc730a02ba"
+    },
+    {
+      "path": "finding_assistant/interfaces/http/mobile_assets/app.js",
+      "bytes": 19483,
+      "sha256": "84323c5f6f2ce5093b3fd832c1ee706046a0a13ccf7a89d195323f0dba26879f"
+    },
+    {
+      "path": "finding_assistant/interfaces/http/mobile_assets/index.html",
+      "bytes": 4523,
+      "sha256": "71abd45b12e8bab38cbd3f74572690521d10182f5d4c56e3459bfd3669cb9c5b"
+    },
+    {
+      "path": "finding_assistant/interfaces/http/mobile_assets/location-card.mjs",
+      "bytes": 3853,
+      "sha256": "42105801f615305c5e42e7376130a646123df9c920674a4c822b0c8d55ac1167"
+    },
+    {
+      "path": "finding_assistant/interfaces/http/mobile_assets/model.mjs",
+      "bytes": 4247,
+      "sha256": "d60eab7a7cfea21fc0244d8242c47180c19f109084d233bef2a79d4a418cfa11"
+    },
+    {
+      "path": "finding_assistant/interfaces/http/mobile_assets/scanner.mjs",
+      "bytes": 743,
+      "sha256": "31720dffa173ec5f426f6c52c67adec72d2d3bfc659a6ae1dc3e71f52fe2587e"
+    },
+    {
+      "path": "finding_assistant/interfaces/http/mobile_assets/style.css",
+      "bytes": 4727,
+      "sha256": "0ccc678a0bc8a842f2138fc350ae2340f7481cb6443c821de2b320488fc790d6"
+    },
+    {
+      "path": "finding_assistant/interfaces/http/runtime.py",
+      "bytes": 6207,
+      "sha256": "3dbd5ad03211648d108a0c965abf12412c7e7eaa420c5149490327af2c1e40cf"
+    },
+    {
+      "path": "finding_assistant/interfaces/http/scan_routes.py",
+      "bytes": 15112,
+      "sha256": "d05ab5eff42296fec9f53094bd9699eb1712ce5b8a88cdac4270e614811a92c1"
+    },
+    {
+      "path": "finding_assistant/interfaces/http/schemas.py",
+      "bytes": 2597,
+      "sha256": "e73b5e9122c53018ee62878cc31f0d5cde48f706905a01532072b0e6ff9441cd"
+    },
+    {
+      "path": "finding_assistant/interfaces/worker/__init__.py",
+      "bytes": 73,
+      "sha256": "f840dde0a7f3aa13ad90e934ec1d76615d1e3b65ad6832ed8a6ebb353d24d461"
+    },
+    {
+      "path": "finding_assistant/interfaces/worker/__main__.py",
+      "bytes": 21824,
+      "sha256": "1a43eb429c6557abebe0e39621d6c39a0f0e7bf5f33c4f8e3e463e2dd1e99419"
+    },
+    {
+      "path": "finding_assistant/security/__init__.py",
+      "bytes": 42,
+      "sha256": "31303d0b0b60a25626ec29cf9dc58e4b5e0d0579c87a0233bbf1624943a0667e"
+    },
+    {
+      "path": "finding_assistant/security/errors.py",
+      "bytes": 637,
+      "sha256": "16e54905c35dbf33827f4569f3c418f104913eaa04d47cce51d6f69a1ca5e811"
+    },
+    {
+      "path": "finding_assistant/security/login.py",
+      "bytes": 19447,
+      "sha256": "708a182417b9ea44a0484597805557b36bef880bc527b4dc731678667055b2a6"
+    },
+    {
+      "path": "finding_assistant/security/native_access.py",
+      "bytes": 5580,
+      "sha256": "aaa429fc9565ad3e1474101e7fefaf9e980f96834baecf4b44e8afb740ce9662"
+    },
+    {
+      "path": "finding_assistant/security/permissions.py",
+      "bytes": 6837,
+      "sha256": "948f1291e92e668bff9d6d8da152e849f3507653b66934abb0cbb12b62728327"
+    },
+    {
+      "path": "finding_assistant/security/query_scope.py",
+      "bytes": 1312,
+      "sha256": "169621ea00ab7d50561c18b25c40bc4b6393e4e6441bda4bb155069af3295d6d"
+    },
+    {
+      "path": "finding_assistant/security/sql_visibility.py",
+      "bytes": 10311,
+      "sha256": "078a8082a95fd1a6d1c619a9727946387888ae33f8798a0113c755f2638112fb"
+    },
+    {
+      "path": "finding_assistant/servers/__init__.py",
+      "bytes": 85,
+      "sha256": "6852c38ee78910ecba9cff5dc5f37cc95c483b85f39c891f367990e9c3000400"
+    },
+    {
+      "path": "finding_assistant/servers/__main__.py",
+      "bytes": 768,
+      "sha256": "cac17af635c5da09c18bbafc44160f82648402336cf486b5dd3498c2aea5b435"
+    },
+    {
+      "path": "finding_assistant/servers/admin.py",
+      "bytes": 829,
+      "sha256": "8df0dc0b58fcf6a9b0b5eae5878e6c3f30bd0ef836b6705bc4500156853d7449"
+    },
+    {
+      "path": "finding_assistant/servers/contracts.py",
+      "bytes": 1297,
+      "sha256": "91851f1237a721d3862aebdd1a7e49cc1c1d601d43c242725e41e2c549819c65"
+    },
+    {
+      "path": "finding_assistant/servers/operations.py",
+      "bytes": 1218,
+      "sha256": "9fded974f6e24ac25de62f9c6415f83f746bf70ea6181ab28dcc671c6fc5218a"
+    },
+    {
+      "path": "finding_assistant/servers/query.py",
+      "bytes": 696,
+      "sha256": "36b42762e2c3203c7d40f531138f99a352e017f4a3f91c12563ab3273744860b"
+    },
+    {
+      "path": "install-log-download-task.ps1",
+      "bytes": 2063,
+      "sha256": "90dc2f30261e6e573119bd1c50d32c05bfefba14946dd7e59bca2a39c25a17af"
+    },
+    {
+      "path": "log-download.example.json",
+      "bytes": 359,
+      "sha256": "6fba9d900583cd0b3c784092d867e5e563307506a1684f8d349ba928fec99cbc"
+    },
+    {
+      "path": "log_transfer.py",
+      "bytes": 2022,
+      "sha256": "e6f6cf5930ba1ad9205319158b6961ad94b3e8daa5f17f223a9807af71c8e75c"
+    },
+    {
+      "path": "main.py",
+      "bytes": 276,
+      "sha256": "5b8e799682ca8a267f083afca3f5a53ed58d41c173148e0d4eb6a57b584085a6"
+    },
+    {
+      "path": "monitor.example.json",
+      "bytes": 290,
+      "sha256": "ef1accc6c2d99a6d2d9bd78aa49e3aa42623f9cf57cc3dde096fd34d183a0d41"
+    },
+    {
+      "path": "monitor.server.example.json",
+      "bytes": 283,
+      "sha256": "bfa69d54527ab3f1e5551cbcfcf762a7fc3881ecc4613d37dac390544f8a84fc"
+    },
+    {
+      "path": "ops_tools.py",
+      "bytes": 2454,
+      "sha256": "fc1776ddaea70e827723da3f434b846f90d88aa8b63e997091de5237c0bc3c17"
+    },
+    {
+      "path": "pyproject.toml",
+      "bytes": 735,
+      "sha256": "3498b8cbdc6d45e82c76acba7858d079ef05d98ca5e05e67c6f4fe2b90b26302"
+    },
+    {
+      "path": "uv.lock",
+      "bytes": 101619,
+      "sha256": "1200740b536ef90d8a152d9b949bf3195fcadb91f28acc71cb7ab593ffe6e240"
+    },
+    {
+      "path": "worker.py",
+      "bytes": 220,
+      "sha256": "e5423c6da01728de18766865a645f96e2fe8f7c936473c0135da8ab86168416a"
+    },
+    {
+      "path": "业务备份与SQL检索说明.txt",
+      "bytes": 36878,
+      "sha256": "2d4cb1982086eae2d1c8d596c541a16b6a608775f7d5f6a7f76fb7ad1527599f"
+    },
+    {
+      "path": "业务待定事项台账.txt",
+      "bytes": 31291,
+      "sha256": "5b4030d3b89c07b8238b850b5291fc3afe2462ce92865b675bec0c4e5dcb51f3"
+    },
+    {
+      "path": "代码阅读指南.txt",
+      "bytes": 8293,
+      "sha256": "37ca82a56ddd2468e7d5b000e49003f9b29fda99e261fe74bd59654bbd4bd62a"
+    },
+    {
+      "path": "入库业务规则说明.txt",
+      "bytes": 4893,
+      "sha256": "8c48eaefae41ffaf0a6d40f2b28a24cc901615b759fb2db573ca1db4ab015d1b"
+    },
+    {
+      "path": "后台任务运行说明.txt",
+      "bytes": 7876,
+      "sha256": "7a56cd459b01d4878adcc5054eaf23eea68b2187679de41827370c9995b9900c"
+    },
+    {
+      "path": "后台执行与进度接口说明.txt",
+      "bytes": 3828,
+      "sha256": "940f022a2fe7f13dba1c405aa2738c4b7ef3528736374350a2ee1d708f29a547"
+    },
+    {
+      "path": "后台运维查询说明.txt",
+      "bytes": 9385,
+      "sha256": "8a8f30642fbd8f4d62a1daf537f0accb1fc4dbf349a124683374fdb0d974b90c"
+    },
+    {
+      "path": "审计日志目录与运维交接说明.txt",
+      "bytes": 16054,
+      "sha256": "2770a0d998ce38eb6b268b67829223fde15b3a4b083ce4f296a7048e89d90f9d"
+    },
+    {
+      "path": "已确认业务规则与对接说明.txt",
+      "bytes": 34676,
+      "sha256": "8d7bf85ea8b55aff46d2c795e34240a8ddd3f8fde82093364fe1d250eb155af1"
+    },
+    {
+      "path": "常驻运行与日志说明.txt",
+      "bytes": 7945,
+      "sha256": "3da6d32b597d87ed8fc1eaf5fd0aa385fb47e69f6e94449eac789587d9007778"
+    },
+    {
+      "path": "库存执行与恢复说明.txt",
+      "bytes": 16446,
+      "sha256": "fc34c9d37d50cbb5d0d6becc829bbd611852232902450af2ea071552dc896e68"
+    },
+    {
+      "path": "异常处理与敏感数据保护说明.txt",
+      "bytes": 5033,
+      "sha256": "644ae80383f87f4f050b975d41ea0fd9a4748bbcc3fd2cecf25eeb929d9e8278"
+    },
+    {
+      "path": "快速受理与后台恢复说明.txt",
+      "bytes": 5650,
+      "sha256": "56a02c966a2f22906c9cf2effda3b30ce709be80adac383f817340a1e2714637"
+    },
+    {
+      "path": "性能分段计时与分析说明.txt",
+      "bytes": 7621,
+      "sha256": "22288a0fbe21659a6e6ed3e12163232749f141173053d19ddfdd9957b4d2f4bb"
+    },
+    {
+      "path": "手机前端与飞书入口接入说明.txt",
+      "bytes": 8971,
+      "sha256": "30007862e8901e92846b965cc39911a91f49df5ee81419814af3eff1c2faea0e"
+    },
+    {
+      "path": "扫码权限运行说明.txt",
+      "bytes": 7200,
+      "sha256": "fb152b0b1711328ff41cdaac14bb50936206ce2bfa2e2c5c15b5cb2bb9131704"
+    },
+    {
+      "path": "批量执行与运维状态说明.txt",
+      "bytes": 3645,
+      "sha256": "1f5e1d42d061205d1e47e3fbd9124695690cfcd276d680ad28be93b5ae0140bb"
+    },
+    {
+      "path": "数据库运维说明.txt",
+      "bytes": 12658,
+      "sha256": "508043075f1df30c703112e780992378e638c7b5f799f5cb29b20ae4d95e244e"
+    },
+    {
+      "path": "日志下载与归档运行说明.txt",
+      "bytes": 8432,
+      "sha256": "2bad9dccd368d1767b1ae11a7dd829426febe2c4e17b014dedc45e77c3048bd4"
+    },
+    {
+      "path": "旧规则兼容与库位流转说明.txt",
+      "bytes": 4576,
+      "sha256": "315d719aeb35dd3c56b9ba56ee0e9dfd4b3fbfc6fcc8ff5ae2e2644895caea9c"
+    },
+    {
+      "path": "服务器容器运行说明.txt",
+      "bytes": 4827,
+      "sha256": "c66a634ac70b23fb2a9e96c5f0aaf92d7964e273379258531c7fe987bc285c6f"
+    },
+    {
+      "path": "查询权限与诊断告警说明.txt",
+      "bytes": 3631,
+      "sha256": "513d1d2aec53dc1896286633d856d9f8cbfb7dfe95b101c0426acb4507a2b52f"
+    },
+    {
+      "path": "版本说明-2.0.txt",
+      "bytes": 2347,
+      "sha256": "d2a7b7f09cfece4e50f314564331b35ce2ec72e5b262b710ad8869f6915b025d"
+    },
+    {
+      "path": "登录会话与令牌刷新说明.txt",
+      "bytes": 6412,
+      "sha256": "656607758e42b3c219284e3af9aac8649b9238411dbc2646946f8e8613dbd74b"
+    },
+    {
+      "path": "组合位置分配与运行说明.txt",
+      "bytes": 13357,
+      "sha256": "b5378002ebfec4d77f57867c0fed394c85eeb2e2dee5cbe754f600e515a4e273"
+    },
+    {
+      "path": "货物查询接口说明.txt",
+      "bytes": 3944,
+      "sha256": "a2d4d2d7b53328b9bb4e70e513424a4afc26d1568b2fafbee9c7e441f9e2a136"
+    },
+    {
+      "path": "跨表读取与入库校验说明.txt",
+      "bytes": 6204,
+      "sha256": "09a617ee24faadba1c6ff6235e63ecdabbc59c7f500622de4b38014e6dee592b"
+    },
+    {
+      "path": "转仓开发与字段说明.txt",
+      "bytes": 5225,
+      "sha256": "cc5136c4217d515770ee92102a7198293ae3e39543fc7ee1d5fe599774193172"
+    },
+    {
+      "path": "运行自检与故障处理说明.txt",
+      "bytes": 5972,
+      "sha256": "ebacd08b012b9a83727f618fdefe71b166bd37d6a9955995176c4bf13c9999d1"
+    },
+    {
+      "path": "项目待办事项.txt",
+      "bytes": 85123,
+      "sha256": "161572964e1636668b3356f5c84228e8d30ac58e352ebc317f762bd0eb52817a"
+    }
+  ]
+}

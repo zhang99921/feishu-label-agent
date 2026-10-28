@@ -1,3 +1,4 @@
+# 仅打印未来工具分组：python -m finding_assistant.servers --catalog；不会启动 MCP 传输。
 """Inspect server boundaries without starting a transport or reading credentials."""
 import argparse
 import json

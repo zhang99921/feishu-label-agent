@@ -1,3 +1,4 @@
+# 未来流转 MCP 工具目录；当前部署依然以普通 HTTP 后端为入口。
 """Pallet movement MCP server: fixed actions, shared authorization/idempotency."""
 from typing import Callable
 
@@ -14,5 +15,6 @@ TOOLS = (
 TOOL_NAMES = tuple(tool.name for tool in TOOLS)
 
 
+# 只向传入的工具注册器注册流转动作，不自动启动 MCP 服务或创建业务会话。
 def create_server(runtime: ServerRuntime, *, server_factory: Callable[[str],ToolRegistry]):
     return register_mutations(server_factory(NAME),runtime,TOOLS)

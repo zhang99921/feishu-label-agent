@@ -1,3 +1,5 @@
+# 托盘码分配与十分钟冷却：码是流转凭证，仓库区域与托盘码是两个概念。
+# plan 只生成变更计划；recover 才按持久流水执行，便于中断后继续核实。
 """Prototype allocator: whole-pallet moves, server-clock 600-second cooldown.
 
 Requires the same local writer gate as Workflow. Does not implement partial
@@ -8,9 +10,11 @@ import json
 from finding_assistant.adapters.feishu.client import ProbeError, save, text
 from finding_assistant.application.workflow import ROOT, Conflict, choice, field, links, writer_gate
 
+# 单位为毫秒；十分钟从操作计划的服务器时间计算，重试不会重新延长冷却。
 COOLDOWN_MS = 600_000
 
 
+# 验证辅助：建立码池及流水资源日志字段；不在普通 HTTP 启动时自动运行。
 def setup_codes(store):
     with writer_gate():
         name = "CODEX_TEST_托盘库位码_" + store.manifest["run_id"][:6]
@@ -47,10 +51,12 @@ def setup_codes(store):
             raise Conflict("incompatible resource journal field")
 
 
+# 维护一托盘一码约束；须与 Workflow 共用 writer_gate，不能独立绕过写锁使用。
 class Allocator:
     def __init__(self, store):
         self.store = store
 
+    # owner 是绑定托盘 record_id 列表；until 是服务器计算的冷却截止毫秒时间戳。
     @staticmethod
     def snapshot(record):
         f = record["fields"]
@@ -58,6 +64,7 @@ class Allocator:
                 "until": int(f.get("冷却截止") or 0), "version": int(f.get("记录版本", 0)),
                 "last_operation": text(f.get("最近操作ID", ""))}
 
+    # 可选条件同时满足：启用、同仓、未绑定、可用/冷却状态且当前时间已到冷却截止。
     @staticmethod
     def eligible(record, warehouse, now):
         f = record["fields"]
@@ -66,6 +73,7 @@ class Allocator:
                 and not value["owner"] and value["state"] in ("可用", "冷却")
                 and now >= value["until"])
 
+    # 分配前检查整个码池：重码、一托多码、状态与绑定不一致均拒绝继续。
     def records(self):
         rows = self.store.records("codes")
         names = [text(row["fields"]["库位码"]) for row in rows]
@@ -84,6 +92,8 @@ class Allocator:
         return [{"record_id": row["record_id"], "code": text(row["fields"]["库位码"]),
                  **self.snapshot(row)} for row in self.records() if self.snapshot(row)["owner"] == [unit_id]]
 
+    # 部分出库仍有货且仓库不变时保留原码；清空或转仓时旧码解绑并冷却。
+    # 需要进入仓库时，从目标仓可用码中按码值排序选择一个；此处不执行远端写入。
     def plan(self, unit_id, before, after, operation_id, now):
         rows = self.records()
         active = [row for row in rows if self.snapshot(row)["owner"] == [unit_id]]
@@ -114,6 +124,7 @@ class Allocator:
                                           version=old["version"] + 1, last_operation=operation_id)})
         return changes
 
+    # 先核实全部码记录都处于计划前/后状态，再补齐缺失写入并回读；漂移时停止覆盖。
     def recover(self, changes):
         # Check every resource first, then apply only recognized before->after changes.
         observed = {}

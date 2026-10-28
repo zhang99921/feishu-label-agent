@@ -1,0 +1,81 @@
+找货助手 运行自检与故障处理说明
+更新日期：2026-10-22
+
+一、启动前配置自检
+
+在项目目录运行：
+  .\.venv\Scripts\python.exe main.py --check-config
+指定配置文件：
+  .\.venv\Scripts\python.exe main.py --check-config --env-file "配置文件的完整路径"
+
+命令只读取配置并退出，不启动端口，不请求飞书，不连接或迁移数据库，不写入业务表。
+退出码0表示当前模式的配置检查通过，退出码2表示需要修正配置。
+输出只包含配置名、检查项及固定错误码，不包含密钥、令牌、回调地址或数据库连接串。
+
+mode=HTTP_ONLY：扫码API未启用，仅运行基础HTTP服务；不代表已具备业务读写能力。
+mode=SCAN_API：检查应用、Base/流水表、租户、OAuth回调、数据库及会话加密配置。
+missing_keys列出未填写的必需配置名；检查失败的keys列出对应配置组。
+箱表、行表、事务账只读配置可以整组暂缺；填写时仍检查完整性及目标是否冲突。
+configuration_only=true、dependencies_checked=false表示尚未探测实际连接。
+配置格式通过不代表应用已发布、文档已授权、数据库在线或跨表业务已入账。
+runtime_logs检查日志目录格式、文件大小及保留数，不创建目录或检查磁盘写权限。
+日志参数不合法时返回INVALID_RUNTIME_LOG_CONFIGURATION；HTTP_ONLY模式也会检查。
+
+二、运行健康检查
+
+GET /health/live：检查HTTP进程是否能响应。
+GET /health/ready：检查业务装配；生产扫码入口还会重新检查数据库连接和迁移标记。
+数据库断开时ready返回503，恢复后再次请求可恢复；live仍可返回200，便于定位依赖故障。
+database_verified=true仅表示本次数据库检查通过；未注入检查器的旧原型不会报告已验证。
+upstream_health_verified=false表示未确认飞书接口、实际授权及业务字段。
+健康检查不修改数据，也不触发实际库存执行。
+
+三、身份与权限故障
+
+401 AUTHENTICATION_REQUIRED：登录缺失、过期或身份验证被拒绝，重新登录后再操作。
+403 ACCESS_DENIED：当前身份无权进行该动作，不改用应用权限强行重发。
+503 IDENTITY_UNAVAILABLE：飞书身份接口超时、限流、服务异常或响应无法核实。
+该类暂时故障不销毁本地有效会话；服务恢复后可沿原会话重新验证，原会话过期则重新登录。
+503 AUTHORIZATION_UNAVAILABLE：暂时不能确认文档权限或后台会话存储等授权依赖。
+503 DEPENDENCY_UNAVAILABLE：健康检查时数据库连接或迁移检查未通过。
+
+故障反馈不得包含密码、令牌、授权码或原始HTTP响应。请求编号用于关联后台日志。
+写请求出现超时或结果不确定时，保留原幂等键及原输入，先核实结果，不另造新请求。
+本次没有新增自动重发、强制成功或越权回退机制。
+
+四、业务边界
+
+权限沿用飞书四档映射，保持现有操作培训安排。
+扫码流水提交及只读校验不代表库存入账；实际入库、出库、转仓闭环等待负责人交接。
+自检不会启用扫码API，不自动填写真实.env，不运行旧原型的建表和库存处理入口。
+测试用例及验证报告保留在开发工作区，不放入运行交付包。
+
+五、后台只读诊断
+
+  .\.venv\Scripts\python.exe worker.py doctor
+该命令在配置检查外，还会连接PostgreSQL并只读核对迁移记录及校验和，不访问飞书。
+DATABASE_UNAVAILABLE：数据库连接或读取未确认。
+DATABASE_URL_REQUIRED：没有提供数据库连接配置。
+DATABASE_SCHEMA_NOT_READY：缺少迁移记录表。
+DATABASE_MIGRATION_REQUIRED：迁移记录不完整。
+MIGRATION_CHECKSUM_MISMATCH：迁移记录与当前代码校验和不一致，应核对版本和部署包。
+检查通过退出0，未通过退出1；不会通过自动修补迁移或重建表来强行通过检查。
+ready=true只表示本次已检查项目通过；仍需结合mode、feishu_checked与业务验收判断可用范围。
+
+六、常驻日志与停止控制
+
+main.py和worker.py poll使用独立的轮转日志，默认位于工作目录logs/。
+RUNTIME_LOG_CONFIGURATION_OR_STORAGE_INVALID：HTTP日志配置或目录不可用，启动退出2。
+RUNTIME_LOG_WRITE_FAILED：运行中日志写入失败，控制台一次性提示，需核查存储。
+不将日志故障视为远端写入失败，也不据此更换请求键或强制重发。
+后台接收支持SIGTERM/Windows SIGBREAK收尾；完整说明见“常驻运行与日志说明.txt”。
+
+七、身份服务临时故障诊断（2026-10-28）
+
+identity_call是每次身份接口调用生成的随机诊断号，可用于配对最多两次尝试；不是账号、会话ID或访问令牌。
+identity_endpoint仅USERINFO/TOKEN，outcome包括SUCCESS、UPSTREAM_ERROR、THROTTLED、CONNECT_ERROR、CONNECT_TIMEOUT、READ_TIMEOUT、TRANSPORT_UNAVAILABLE、INVALID_RESPONSE、REJECTED、REDIRECT_REFUSED。
+日志只输出固定类别、尝试次数及HTTP/API数字码，不包含上游文本。缺少HTTP响应时状态为0；不能将其解读成飞书返回HTTP 0。
+USERINFO只读GET仅对502/503/504及连接建立失败补一次，间隔0.2秒。两次均失败仍返回身份暂不可用；不延长登录期限、不使用旧角色放行。
+429不自动重试，避免无视上游限流；读超时不叠加第二次最长等待；无效响应及明确拒绝不重试。每次网络尝试沿用现有连接/读写超时，最多两次不代表严格的墙钟时限。
+TOKEN授权码交换与刷新可能消耗一次性凭据，仍只发一次。库存写入及未知结果同样不自动重发。
+性能日志oauth_http.calls按实际尝试计数；即使第二次成功，第一次失败仍计入failures。依靠此日志可以定位后续故障类别，不能据此倒推以前没有诊断记录的503根因。

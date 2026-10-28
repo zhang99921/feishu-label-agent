@@ -1,0 +1,47 @@
+货物查询接口
+
+1. 条件检索
+GET /api/v1/search/boxes
+可选条件：box_code箱号、sku、po单号、row_code行码、position_code位置码；另保留fnsku及state。
+多个条件同时满足，按精确值匹配。示例：
+/api/v1/search/boxes?box_code=260929-0008
+/api/v1/search/boxes?sku=SKU-TEST
+/api/v1/search/boxes?po=PO-TEST
+/api/v1/search/boxes?row_code=Q-001&position_code=-01
+单独位置后缀不是全库唯一位置，建议与行码组合；同一SKU、PO可能返回多个箱子。
+limit默认20，上限100；offset分页。返回当前状态、位置、仓、数量及SQL副本时间等摘要。
+SKU筛选沿用箱档案SKU字段；混装明细SKU的展开检索待身份粒度及相关规则敲定后另行完善。
+
+2. 单箱详情
+GET /api/v1/search/boxes/{record_id}
+record_id使用检索结果中的箱表record_id，不是二维码中的箱号，也不是RK流水号。
+返回box_fields原始箱档案字段；sections包括details箱内明细、flows扫码流水、ledger事务账的原始fields。
+扫码流水按箱号1至箱号36匹配，支持已同步的文本和富文本表示；一条流水重复扫同一箱不重复返回该流水。
+未匹配其他货物的记录不会因为同一个SKU或PO被混进该箱历史。箱号档案不唯一时不合并关联记录。
+当前位置由列表摘要提供；详情中的旧流水和事务账可以反映此前填写的历史位置。
+
+3. 关联记录分页
+默认section=all，各段分别返回最多20条，available/has_more/next_offset/limit明确表示范围。
+更多历史可指定section=flows、details或ledger，以及limit、offset。
+示例：/api/v1/search/boxes/recBox?section=flows&limit=20&offset=20&backup_id=上页backup_id
+backup_id来自详情响应。查询时活动副本若变化，返回409，调用方应刷新列表/详情后重新翻页。
+未提供backup_id时读取当前版本，不代表多次请求跨版本一致。关联记录按record_id排序，不宣称时间顺序。
+
+4. 身份、权限与字段
+沿用既有飞书登录会话：API使用Authorization: Bearer 不透明会话ID，浏览器使用已有登录Cookie。
+每次请求核实QUERY权限并记录查询审计，不接受客户端自称角色，不提供未登录公开查询。
+管理员按现有全量读取规则返回该箱及直接关联业务字段。
+普通账号沿用SQL行列权限开关；只有显式启用并核实原生角色规则后才能查询。
+各表分别应用原生行规则和字段掩码；隐藏的箱号/匹配字段不被拿来泄露关联记录。
+普通账号详情暂保守隐藏关联字段18/21，linked_fields_withheld=true；普通人员真实验收继续待办。
+无权限或箱记录不可见按未找到处理；关联表未接入、无授权、关联键隐藏或不唯一时，返回available=false及固定原因，不冒充空数据。
+当前项目FINDING_ASSISTANT_ENABLE_SQL_QUERY已开启，普通账号FINDING_ASSISTANT_ENABLE_SQL_VISIBILITY仍关闭，本次不改变开关。
+
+5. 数据时效及边界
+库存业务数据从PostgreSQL活动副本读取，不在查询时全量拉取飞书业务表；身份和权限检查仍可能调用飞书。
+详情拒绝未就绪/过期副本，并返回backup_id、data_age_seconds；结果是同步版本中的状态，不保证刚写入立即可见。
+原有摘要接口仍返回replica时效信息，调用方应检查stale，不把缓存结果当作实时结果。
+本接口不写库存，不触发入库/出库/转仓；仅按既有要求保存登录、查询等审计/授权辅助记录。
+不返回服务器配置、令牌、密钥或执行计划。附件等业务字段维持源表值，文件有效性及展示由后续前端处理。
+HTTP服务重启加载新入口，无需迁移或.env变动；不需要重启现有同步worker。
+飞书机器人查询卡片、普通人员逐行逐字段验收、正式规模查询性能及混装SKU检索补充仍待办。

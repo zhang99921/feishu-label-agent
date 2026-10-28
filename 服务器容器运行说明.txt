@@ -1,0 +1,57 @@
+服务器容器运行模板（2026-10-26）
+
+范围
+提供Linux Docker/Compose部署模板，不表示镜像已经构建、容器已经运行或服务器已经验收。
+HTTP与同步worker各一个进程。同步服务使用sync profile，默认不会启动。
+不自动启动旧接收程序，不自动建库或迁移，不改变库存执行、位置分配及权限开关。
+只在干净运行包中构建镜像；不把本机.venv、测试、报告、真实配置或日志装进镜像。
+
+一、准备配置
+从.env.example复制为.env.server，在服务器填写真实配置。不要提交该文件。
+compose命令显式使用--env-file .env.example，避免Compose自动解释本机真实.env。
+实际配置以只读文件挂载至/app/.env，由程序既有dotenv解析器读取，不注入Compose配置输出。
+Linux上文件应仅管理员和容器GID 10001可读，例如chown root:10001 .env.server、chmod 640 .env.server。
+容器以10001:10001运行，宿主路径还需允许Docker读取。缺少配置文件会报错，不创建空目录冒充文件。
+数据库必须预先准备且容器可访问；DSN中的127.0.0.1指容器本身，不能沿用本机数据库连接地址。
+模板不附带新PostgreSQL容器，不改现有数据库数据目录；数据库网络地址、备份及恢复由目标主机配置。
+OAuth回调配置为目标服务器对外HTTPS地址；本地8765测试回调不能直接用于服务器登录。
+
+二、准备镜像和自检
+以下命令在解压后的运行包根目录执行，需Docker Compose支持profiles及bind.create_host_path。
+docker compose --env-file .env.example -f compose.server.yaml config --quiet
+docker compose --env-file .env.example -f compose.server.yaml build http
+docker compose --env-file .env.example -f compose.server.yaml run --rm --no-deps http python main.py --check-config
+docker compose --env-file .env.example -f compose.server.yaml run --rm --no-deps http python worker.py doctor
+新数据库尚未迁移时，核对目标数据库后显式运行：
+docker compose --env-file .env.example -f compose.server.yaml run --rm --no-deps http python worker.py db-init
+迁移完成后再次doctor。不要在每次容器启动时自动db-init，也不要改旧迁移文件绕过校验。
+镜像使用本机已用uv版本0.12.23及Python 3.12基础镜像；目标环境仍需构建和依赖获取验收。
+基础镜像标签不等同于不可变摘要；正式发布时记录构建镜像ID及实际使用的基础镜像摘要。
+
+三、启动与检查
+确认人员验收、业务权限及旧程序切换计划后再启动；本模板交付不表示已批准服务器上线。
+docker compose --env-file .env.example -f compose.server.yaml up -d http
+HTTP只映射宿主127.0.0.1:8001，由宿主HTTPS反向代理转发，不直接开放公网8001。
+镜像中的HTTP监听0.0.0.0是容器内部地址，不改变上述宿主映射限制。
+只有旧同步worker已停止、同步范围确认后才启用：
+docker compose --env-file .env.example -f compose.server.yaml --profile sync up -d sync
+不要在本地旧worker仍运行时重复启动同一来源的同步容器。
+查看：docker compose --env-file .env.example -f compose.server.yaml ps
+日志：docker compose --env-file .env.example -f compose.server.yaml logs --tail 100 http
+检查数据库及装配：访问/health/ready；检查SQL时效：容器内运行worker.py sync-status。
+容器健康检查只检查/health/live进程响应；健康不代表飞书可用、SQL新鲜或库存已完成。
+restart:unless-stopped在进程退出后重启，Docker不会仅因unhealthy自动重启；需要宿主监控处置。
+
+四、资源、日志及停止
+HTTP内存上限512MiB，同步worker上限768MiB，每个最多1个CPU；是初始限制，非压测结论。
+应用文件日志在容器环境中关闭，控制台日志由Docker按10MiB、3份轮转；限制不包含数据库和镜像磁盘。
+根文件系统只读，/tmp为64MiB临时内存盘。日志和数据库不可用不应通过放开整个根目录写权限解决。
+停止：docker compose --env-file .env.example -f compose.server.yaml --profile sync stop
+不把force kill或删除容器当作核账方式。未确认写入仍按原幂等/回执恢复流程保留。
+只读运维查询示例：
+docker compose --env-file .env.example -f compose.server.yaml exec http python worker.py inspect rejections --state UNKNOWN
+
+五、尚需目标主机验收
+镜像构建和运行、配置文件权限、数据库连通与迁移、HTTPS/OAuth回调、持续同步与退出恢复、
+重启托管、真实人员权限及业务全链路、资源压测、数据库备份恢复与旧程序停用均需后续验收。
+当前模板未包含TLS代理、数据库服务或对外自动部署，不会通过配置交付触发这些操作。

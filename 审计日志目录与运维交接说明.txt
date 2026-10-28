@@ -1,0 +1,229 @@
+找货助手——审计日志目录与运维交接说明
+版本日期：2026-10-28
+依据：当前 E:\Sourcing agent 运行代码与数据库迁移定义。
+本文不包含密钥、数据库密码、访问令牌或个人会话。
+
+一、先区分三类记录
+
+1. 运行日志：排查接口报错、响应时间、后台执行、同步与依赖故障，主要是磁盘文本文件。
+2. 审计事件：记录哪个应用/租户/账号进行了哪类操作及结果，保存在PostgreSQL。
+3. 业务执行证据：原请求、流水关联、冻结计划、逐箱步骤、事务账及位置占用，保存在PostgreSQL相关表。
+审计事件不能代替逐箱事务；文本日志也不能作为确认库存已完成的唯一依据。
+
+二、目录索引：现有位置与拟部署位置
+
+【现有项目】
+E:\Sourcing agent\
+  .env                              本机配置；禁止随诊断包导出
+  main.py                           HTTP服务入口
+  worker.py                         同步及只读运维命令入口
+  logs\                            默认运行日志目录，可被环境配置覆盖
+    http.log                        HTTP接口/相关子组件运行及耗时
+    http.log.1 … http.log.5          旧版轮转遗留，本次不自动删除
+    sync.log                        飞书→SQL副本同步与巡检
+    sync.log.1 … sync.log.5          旧版轮转遗留，本次不自动删除
+    intake.log                      独立接收进程启用并运行时生成
+    archive\组件名\YYYY-MM-DD\*.log.gz  新版按UTC日期及大小压缩归档
+  finding_assistant\
+    infrastructure\runtime_logging.py       文件日志、轮转及脱敏格式
+    infrastructure\postgres_operations.py   主审计写入与登录/幂等存储
+    infrastructure\operations_queries.py    运维只读查询
+    infrastructure\warehouse_tasks.py       快速任务受理与核查续办审计
+    infrastructure\inventory_execution_store.py  执行步骤、事务与事件
+    infrastructure\postgres_tasks.py        接收任务及来源变化事件
+    infrastructure\sql\                    结构定义及迁移，禁止直接改已安装迁移
+    application\task_recovery.py            只读核查和受控续办校验
+    interfaces\worker\__main__.py           worker.py命令参数
+
+logs为默认相对工作目录，需保持服务工作目录正确，或显式使用绝对路径。
+本次目录枚举被Windows权限拒绝，文件名根据日志组件代码核对；不等于已逐个读取本机日志文件。
+程序写入权限与维护人员读取权限应分别配置，不通过放宽整个项目目录权限解决。
+
+【开发阶段控制台输出，非服务器正式日志目录】
+C:\Users\Administrator\Documents\Codex\2026-10-16\linear-plugin-linear-openai-curated-remote\work\warehouse_base_audit\
+  backend_http_process_20261028.json        当前HTTP PID/启动时间/输出文件索引
+  business_sync_process_20261023.json       当前同步进程索引（文件名日期不等于最后启动日）
+  backend-*.out.log / backend-*.err.log     开发阶段进程控制台重定向
+  sync-*.out.log / sync-*.err.log           开发阶段同步控制台重定向
+该目录还含测试材料，不整体交付、同步或打包给服务器。
+err.log也包含正常控制台日志，不表示每行都是错误；上述重定向文件本身不受组件日志轮转器管理。
+PID与输出文件名会变化，以进程索引和启动时间为准，不在交接文档固定旧PID。
+
+【服务器与办公电脑：已确认原则，具体部署尚未实现】
+服务器运行日志保留30天；办公电脑下载副本长期保存，暂不自动删除。
+Linux建议显式设定运行目录 /var/log/finding-assistant/，实际路径由部署人员确认。
+Docker部署时须挂载持久目录；PostgreSQL数据卷单独管理，不能与文本日志目录混作备份。
+D:\系统运维\找货助手\日志\已由用户确认，每天拉取一次、本地长期保留。每日时刻在模板先提供09:00，可后续调整。
+新版按天/大小归档、30天清理和本地增量下载/校验补拉已开发；服务器未交接连接信息前SFTP配置禁用，不注册任务。
+空间不足会阻止下载并记录固定状态，通知告警、真实SFTP与Windows定时运行仍待部署验收。
+活跃文件默认10MiB触发压缩分段；跨UTC日期时也归档，不按文件数量覆盖新归档。
+默认保留当天及之前29个UTC日期，首次/跨日写日志时清理本组件更早的严格命名归档。
+停机/无日志期间不独立唤醒清理，恢复写日志后检查；不是精确到小时的30×24小时TTL。
+旧*.log.1、未知文件、外部控制台日志不自动迁移或删除，需单独核对旧文件来源及保留策略。
+本地长期离线可能错过已被服务器清理的内容；清理与下载失败的协调策略仍须落实。
+
+三、PostgreSQL审计与证据目录
+
+统一schema：finding_assistant。数据库实际名称、主机、端口由.env配置决定，本文不记录连接串。
+
+audit_events
+  主审计索引：登录、授权、写入、重放、位置、库存执行、续办等事件。
+  字段：id、app_id、tenant_key、open_id、event_type、outcome、action、permission、request_key、recorded_at。
+  tenant_key/open_id等允许为空，未验证身份的拒绝不能强行归因到客户端自报账号。
+
+warehouse_tasks
+  快速受理任务：task_id、原request_key、账号/租户、action、record_id、state、failure_code、时间。
+  含payload/result及加密session_cipher；运维导出须选择字段，禁止SELECT *后直接外发。
+  SUCCEEDED、AUTH_REQUIRED、REVIEW会清除任务会话密文，历史任务和原键继续保留。
+
+write_requests
+  飞书写入幂等凭证及回执：按app_id/base_token/table_id/request_key唯一。
+  state、record_id、failure_code及时间用于追踪请求；payload/response可能含业务原文，不默认导出。
+
+scan_jobs / scan_items / scan_job_events
+  来源接收登记 / 去重后箱号序号 / 来源及执行事件。
+  source_key关联同一来源；接收QUEUED不等于实际库存执行仍排队。
+
+inventory_executions
+  库存冻结计划及总体状态：source_key、execution_id、action、state、failure_code、位置确认及时间。
+inventory_steps
+  每个执行步骤：source_key、ordinal、step_id、kind、state、remote_record_id、failure_code、confirmed_at。
+inventory_transactions
+  每箱事务：transaction_id、source_key、box_code、action、document_reference、transaction_no、quantity、state、active、remote_record_id、posted_at。
+  含前后值等业务信息，使用受控查询选择性导出，不整表外发。
+
+position_reservations / position_box_claims
+  位置预占、绑定、释放/冷却及箱子成员证据；未知写入不能手工释放占用。
+location_reservations
+  旧兼容位置预占证据，不能据旧表单独判断当前组合位置是否可用。
+inventory_rejections
+  业务异常回写状态、固定原因及远端回执；网络故障不自动认作业务异常。
+
+app_users / user_sessions / oauth_challenges
+  身份与会话存储，不是可直接交接的普通审计日志。
+  禁止导出访问/刷新令牌、会话ID、挑战绑定、授权码、加密凭据及密钥；加密不代表适合外发。
+
+四、关联编号怎么使用
+
+task_id：快速受理任务UUID。
+request_key：原写入请求幂等UUID，须同时限定应用、Base及表，不能只凭一个UUID跨系统推断。
+record_id：飞书记录ID（通常rec开头），不是RK-xxxx可读流水编号。
+source_key：BaseToken:扫码流水表ID:record_id。
+execution_id：冻结库存执行计划UUID。
+step_id / ordinal：步骤UUID / 计划内顺序。
+transaction_no / document_reference：逐箱账编号 / RK-xxxx-k单据引用。
+k为去重后的扫描序号，既不是箱号，也不是原表单槽位号。
+HTTP request_id：HTTP请求追踪号；一次业务会对应多次请求，不能等同于task_id。
+identity_call：身份读取调用的随机诊断号，用于配对尝试次数，不是登录会话。
+
+特别注意：audit_events.request_key是复用的关联字段，不总是原始幂等键。
+  WRITE / WRITE_REPLAY：原写入request_key。
+  TASK_ADMISSION / TASK_REVIEW_CONTINUE：task_id。
+  INVENTORY_EXECUTION：execution_id。
+  HTTP_REJECTED：服务端HTTP request_id转换的UUID。
+  VALIDATION_FEEDBACK：异常回写rejection_id。
+  其他事件可能为空或为对应模块关联UUID，需按event_type及源码解释。
+排查链路：task_id→warehouse_tasks.request_key/record_id→source_key→execution_id→steps/transactions。
+仅按原request_key查询audit_events不会自动收集该链路的全部审计。
+
+五、主要审计事件索引
+
+LOGIN / LOGOUT                 登录允许 / 注销撤销
+TOKEN_REFRESH                  刷新开始、成功、拒绝或结果未知
+AUTHORIZE                      动作权限判断，区分拒绝、租户不符、未解析、依赖不可用
+WRITE / WRITE_REPLAY           写入开始、成功、失败或未知；已成功原键重放
+TASK_ADMISSION                 快速任务持久受理
+TASK_REVIEW_CONTINUE           人工核查后原任务重新入队
+BACKGROUND_EXECUTION           旧后台执行入口兼容审计
+INVENTORY_VALIDATION           库存业务校验拒绝
+INVENTORY_EXECUTION            PREPARED / RUNNING / RECONCILE / SUCCEEDED
+POSITION_RESERVE / POSITION_WRITE / POSITION_CONFIRM   位置预占、写入及确认
+VALIDATION_FEEDBACK            异常状态与处理说明回写
+SQL_QUERY                     SQL库存检索授权结果
+HTTP_REJECTED                 已覆盖的输入/业务/冲突拒绝，不代表所有HTTP错误均入审计
+MAINTENANCE                   手动数据库维护完成
+
+scan_job_events还含QUEUED、BLOCKED、SOURCE_CHANGED、POSTING_PREPARED、
+POSTING_STEP_CONFIRMED:序号、POSTING_RECONCILE:错误码、POSTING_SUCCEEDED等。
+审计outcome须结合event_type理解；ALLOWED/QUEUED不等于库存已经入账。
+POSTED逐箱事务、CONFIRMED步骤与最终SUCCEEDED需一并核对。
+
+六、只读排查命令
+
+以下在Windows PowerShell中执行，命令本身不写飞书、不重发任务。
+先进入项目：
+  Set-Location -LiteralPath 'E:\Sourcing agent'
+
+最近审计，每页最多100条：
+  .\.venv\Scripts\python.exe worker.py inspect audit --limit 50
+下一页，将123替换为上一页next_before_id：
+  .\.venv\Scripts\python.exe worker.py inspect audit --before-id 123 --limit 50
+按关联UUID筛选，将示例UUID替换为对应编号：
+  .\.venv\Scripts\python.exe worker.py inspect audit --request-key 3459af3a-faea-4c82-a091-03e640b1f237
+  .\.venv\Scripts\python.exe worker.py inspect writes --request-key 3459af3a-faea-4c82-a091-03e640b1f237
+查看待核查执行及提示：
+  .\.venv\Scripts\python.exe worker.py inspect attention --limit 20
+按箱号查执行，将BOX-CODE替换为实际箱号：
+  .\.venv\Scripts\python.exe worker.py inspect executions --box-code BOX-CODE --limit 20
+查看原接收事件或完整执行证据，将整段来源键替换为实际值：
+  .\.venv\Scripts\python.exe worker.py inspect task --source-key 'BASE:SCAN_TABLE:RECORD_ID'
+  .\.venv\Scripts\python.exe worker.py inspect execution --source-key 'BASE:SCAN_TABLE:RECORD_ID'
+  .\.venv\Scripts\python.exe worker.py status
+  .\.venv\Scripts\python.exe worker.py sync-status
+
+命令默认读取当前目录.env；其他工作目录须明确传--env-file。
+audit/writes等默认用配置的FEISHU_APP_ID筛选，未配置应用时可能查询全部应用，交接时需核实范围。
+这些命令依赖服务器/数据库访问权限，不代表持有普通飞书账号即可访问数据库。
+当前inspect没有提供按日期/账号筛选audit的CLI参数；不要编造--date、--user等参数。
+
+七、日志时间、配置与落盘边界
+
+文本日志使用UTC并带Z；北京时间=UTC+8小时。PostgreSQL使用timestamptz，查询显示时区可能随客户端变化。
+对账时统一时区，不直接将页面显示的北京时间与UTC日志字符串比较。
+FINDING_ASSISTANT_LOG_DIR：目录；空值明确关闭组件文件日志，仍保留控制台。
+FINDING_ASSISTANT_LOG_MAX_BYTES：默认10485760。
+FINDING_ASSISTANT_LOG_BACKUPS：默认5。
+  旧配置兼容保留，不再以数量限制新版归档。
+FINDING_ASSISTANT_LOG_RETENTION_DAYS：默认30，可配置1至3650；当前规则仍为30。
+组件文件轮转不影响PostgreSQL审计，也不管理外部控制台重定向、Docker日志或数据库服务器日志。
+飞书/数据库不可用时某些审计可能无法落库，不能将“没有记录”解释为“没有操作”。
+身份诊断finding_assistant.identity现已显式接入组件handler；HTTP进程优先进入http.log，
+单独同步/接收进程则使用其组件日志通道。重复配置不会重复写同一事件。
+归档/清理故障报告固定RUNTIME_LOG_WRITE_FAILED，当前事件尽量继续追加活跃日志，归档操作退避60秒再试。
+
+八、保留、备份与清理边界
+
+用户已确认：服务器运行文本日志30天，办公电脑副本长期保存、暂不删除。
+审计事件和业务事务的保留年限尚未确认，不套用文本日志30天期限。
+数据库审计随PostgreSQL备份及恢复演练管理；下载文本日志不是数据库备份。
+当前手动db-maintain默认仅清理过期挑战和旧会话，不再默认删除审计。
+只有显式指定--audit-days才启用审计分批清理；审计期限未确认前不传该参数或安排审计清理。
+本次仅修改默认行为，未在日常数据库执行维护或删除审计数据。
+文件日志轮转和日常同步worker不会因为服务器文本日志30天政策而自动删除审计。
+
+九、给Codex或接手人员的诊断包建议（尚未自动化）
+
+每包按系统/日期/时间窗分目录，包含：
+  manifest.json              环境标识、版本、UTC时间窗、文件清单、大小、校验值、缺失项
+  runtime/                   指定时间窗运行日志
+  audit/audit-events.jsonl    按关联链选择的审计事件
+  audit/task-summary.json    任务和执行摘要，不含凭据/完整payload
+  audit/steps.jsonl          步骤及回执摘要
+  audit/transactions.jsonl   必要的逐箱账字段
+  health/                    就绪、同步时效及只读巡检摘要
+不得将.env、user_sessions、oauth_challenges、密钥、完整库转储或开发测试目录混入诊断包。
+open_id、箱号和商品信息仍属内部数据；按排查所需范围导出，给外部接手人员时走授权渠道。
+诊断包下载后应校验完整性，保留服务器原件；电脑关机后补拉，下载失败要有记录。
+上述包含审计/事务的诊断包仍是后续规范，当前没有自动导出数据库审计或自动触发Codex。
+当前运行日志下载另使用status.json、download-events.jsonl、manifests及objects目录；详见《日志下载与归档运行说明.txt》。
+
+十、交接检查清单
+
+核实生产/测试环境、部署版本、服务工作目录、日志绝对路径及读取权限。
+核实HTTP/同步进程、开机启动与异常退出恢复；不能仅凭旧PID或旧元数据判断运行正常。
+核实所有日志通路实际落盘、轮转、归档、30天保留、本地下载与空间提醒。
+核实数据库备份及还原，单独确认审计保留策略与db-maintain使用规则。
+核实task_id→原键→流水→执行→逐箱账的编号映射，保留原始失败证据。
+未知写入仅使用已有核查入口；不改SQL状态、不清空账、不换键重发、不手工释放位置。
+HTTP核查/续办接口详见《快速受理与后台恢复说明.txt》，原账号且可管理权限限制仍有效。
+测试材料留开发目录；本说明属于运行交付文档，可随服务器运行包交接。

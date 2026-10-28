@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>找货助手</title>
+  <link rel="stylesheet" href="/app/assets/style.css">
+  <script type="module" src="/app/assets/app.js"></script>
+</head>
+<body>
+  <header><div><span class="eyebrow">仓储工作台</span><h1>找货助手</h1></div><span id="identity" class="badge">正在连接</span></header>
+  <main>
+    <div id="notice" role="status" aria-live="polite"></div>
+    <section id="home">
+      <div class="intro"><h2>今天要处理什么？</h2><p>按箱操作，一批核对后统一提交。</p></div>
+      <div id="menu" class="grid">
+        <button data-flow="IN" class="tile"><span class="symbol">↙</span><strong>入库</strong><small>选仓 · 扫箱 · 确认</small></button>
+        <button data-flow="OUT" class="tile"><span class="symbol">↗</span><strong>出库</strong><small>扫箱 · 核对 · 出库</small></button>
+        <button data-flow="MOVE" class="tile"><span class="symbol">⇄</span><strong>转仓</strong><small>目标仓 · 扫箱 · 转仓</small></button>
+        <button id="open-query" class="tile"><span class="symbol">⌕</span><strong>找货查询</strong><small>箱号 / SKU / PO / 位置</small></button>
+        <button id="labels" class="tile muted"><span class="symbol">▦</span><strong>生成箱标</strong><small>准备中</small></button>
+      </div>
+      <button id="resume" class="wide" hidden>继续本批任务</button>
+      <a id="login" class="login" href="/auth/feishu/start?ui=true">使用飞书账号登录</a>
+      <button id="logout" class="quiet" hidden>退出登录</button>
+    </section>
+
+    <section id="editor" class="panel" hidden>
+      <button class="back" data-home>‹ 返回首页</button><h2 id="flow-title"></h2>
+      <p class="steps">选择仓库 / 扫描箱号 / 核对提交</p>
+      <label id="warehouse-label">目标仓库<select id="warehouse"><option value="">请选择仓库</option></select></label>
+      <div class="counter"><strong>本批箱号</strong><span id="count">0 / 36</span></div>
+      <form id="add-form"><label for="box-input">扫描或输入箱号</label><div class="input-row"><input id="box-input" maxlength="200" autocomplete="off" placeholder="输入箱号，回车添加"><button type="submit">添加</button></div></form>
+      <button id="scan" class="secondary wide">扫描下一箱</button><p id="scan-hint" class="hint"></p>
+      <ol id="box-list" class="box-list"></ol>
+      <button id="review" class="wide">核对本批货物</button>
+    </section>
+
+    <section id="review-panel" class="panel" hidden>
+      <h2>确认本批操作</h2><p id="review-summary"></p><ol id="review-boxes" class="box-list"></ol>
+      <p class="hint">确认后按整批处理。提交成功后还需等待后台完成。</p>
+      <button id="confirm" class="wide">确认并提交本批</button><button id="edit" class="quiet wide">返回修改</button>
+    </section>
+
+    <section id="task" class="panel" hidden>
+      <button class="back" data-home>‹ 返回首页</button><h2 id="task-title">正在处理</h2>
+      <p id="task-summary"></p><section id="location-card" class="location-card" aria-label="本批位置结果" aria-live="polite"></section><p id="task-state" role="status" aria-live="polite"></p><progress id="progress" max="1" value="0"></progress>
+      <p id="task-message" class="hint"></p>
+      <button id="continue" class="secondary wide" hidden>使用原请求继续</button>
+      <button id="dispatch" class="secondary wide" hidden>继续处理原流水</button>
+      <button id="refresh" class="quiet wide">刷新进度</button>
+      <button id="new-batch" class="wide" hidden>开始下一批</button>
+    </section>
+
+    <section id="query" class="panel" hidden>
+      <button class="back" data-home>‹ 返回首页</button><h2>找货查询</h2><p class="hint">按完整编码查询，多条件同时填写时取交集。</p>
+      <form id="query-form"><div id="query-fields" class="query-fields"></div><button class="wide">查询货物</button></form>
+      <p id="query-message" role="status"></p><div id="query-results"></div><button id="query-next" class="secondary wide" hidden>下一页</button><div id="query-details"></div>
+    </section>
+    <footer>以实际处理结果为准 · 库存查询来自同步副本</footer>
+  </main>
+</body></html>

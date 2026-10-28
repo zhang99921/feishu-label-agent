@@ -1,3 +1,5 @@
+# 复用 HTTP 连接以减少握手；保留系统 TLS 信任链、固定 API 域名和禁止重定向。
+# 允许互不依赖的并行读，但不提供跨表事务或自动写重试。
 """Verified-origin HTTP pooling, with TLS verification and no automatic retries."""
 import json
 import ssl
@@ -20,12 +22,14 @@ class PooledClient(Client):
             follow_redirects=False, timeout=20,
             limits=httpx.Limits(max_connections=4, max_keepalive_connections=2, keepalive_expiry=60))
 
+    # 只统计连接/握手次数，不记录请求体、授权头等敏感内容。
     def _trace(self, name, info):
         if name == "connection.connect_tcp.started":
             self.transport_metrics["tcp_connections"] += 1
         elif name == "connection.start_tls.started":
             self.transport_metrics["tls_handshakes"] += 1
 
+    # 先校验相对 API 路径，再发送带令牌请求；拒绝域名覆盖、目录跳转及重定向。
     def request(self, method, path, body=None, query=None):
         # Joining strings alone is insufficient: reject fragments, authorities and
         # path traversal before a credential-bearing request can leave the client.

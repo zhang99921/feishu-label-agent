@@ -1,3 +1,4 @@
+# 只读角色目录：读取高级权限角色和直接用户成员；空成员列表不能证明默认登录用户无权限。
 """Read-only native Feishu role directory adapter."""
 from finding_assistant.adapters.feishu.client import DEMO, ProbeError
 from finding_assistant.security.errors import AccessDenied, AuthorizationUnavailable
@@ -7,6 +8,7 @@ class RoleDirectory:
     def __init__(self, client):
         self.client = client
 
+    # 完整读取分页；仅接受已验证的显式空角色响应，缺失或异常分页都拒绝。
     def _pages(self, path):
         items, cursor, seen = [], None, set()
         while True:
@@ -31,6 +33,7 @@ class RoleDirectory:
                 raise AuthorizationUnavailable("invalid native role pagination")
             seen.add(cursor)
 
+    # 核实高级权限开启后，按 open_id 匹配直接用户成员；不推断部门、群组或默认角色。
     def direct_roles(self, open_id):
         try:
             app = self.client.request("GET", "/bitable/v1/apps/"+DEMO[0])["data"]["app"]

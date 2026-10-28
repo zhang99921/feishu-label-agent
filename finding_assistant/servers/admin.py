@@ -1,3 +1,4 @@
+# 未来管理 MCP 工具目录；注册工具并不赋予管理员权限，执行时仍需后端核实。
 """Administration MCP server: explicit server-side admin authorization required."""
 from typing import Callable
 

@@ -1,0 +1,137 @@
+找货助手：后台运维查询说明
+更新日期：2026-10-22
+
+用途
+运维人员通过服务器命令行查看已接收任务、写入请求和审计记录。
+所有命令仅查询PostgreSQL现有辅助表，不调用飞书，不改任务状态，不执行库存入账。
+无需配置用户令牌或加密密钥来解密数据；这些命令不会读取或输出会话令牌。
+命令行访问使用服务器已有数据库权限，不作为日常操作员的HTTP接口开放。
+
+运行位置与配置
+先进入项目目录：
+  cd "E:\Sourcing agent"
+然后使用本项目解释器，例如：
+  .\.venv\Scripts\python.exe worker.py inspect tasks --state BLOCKED
+下文统一省略解释器前缀，也可用uv run python worker.py。
+每个inspect子命令均可在末尾追加 --env-file "配置文件的完整路径"。
+只需要已有数据库连接和已完成的迁移，不自动执行db-init。
+
+一、定位接收任务
+
+查看最近20条输入异常任务：
+  worker.py inspect tasks --state BLOCKED
+查看来源修改后被隔离的任务：
+  worker.py inspect tasks --state RECONCILE --limit 50
+按箱号查已接收任务：
+  worker.py inspect tasks --box-code "箱号"
+按飞书来源记录ID查询：
+  worker.py inspect tasks --record-id "来源record_id"
+以上筛选可组合使用，最多返回100条；has_more=true表示还有结果，可缩小筛选范围。
+该查询只反映接收过的内部任务，不是实时库存或箱号主档案查询。
+
+列表字段包含source_key、source_record_id、动作、状态、箱数、输入错误及警示。
+errors为阻断接收的输入原因，例如BOX_REQUIRED表示缺少箱号；
+warnings为警示，例如SOURCE_CREATOR_UNRESOLVED表示来源创建人尚未解析。
+QUEUED仅表示后台接收；BLOCKED表示输入不完整；RECONCILE表示来源内容发生变化。
+这些状态均不代表已入账、已出账或已转仓。
+
+查看单个任务的原始逐箱输入及最近事件：
+  worker.py inspect task --source-key "Base标识:扫码表ID:来源record_id"
+source_key可从任务列表复制；RK-xxxx等显示流水号不是这里的来源记录ID。
+同一record_id可能出现在不同来源，因此任务明细必须使用完整来源键。
+显示原先接收的箱号；源记录被修改后仍保留原输入，不能据此当作自动修正后的输入。
+最多显示最近100个任务事件，events_truncated=true表示更早事件未在本次输出。
+found=false表示没有找到该内部任务，不表示箱子不存在或已经出库。
+
+二、追查写入请求
+
+查看结果不确定的请求：
+  worker.py inspect writes --state UNKNOWN
+查看停留在调用阶段的请求：
+  worker.py inspect writes --state RUNNING
+按UUID4幂等键定位：
+  worker.py inspect writes --request-key "请求UUID4"
+指定应用范围：
+  worker.py inspect writes --app-id "应用ID" --state FAILED --limit 50
+
+默认使用.env中的FEISHU_APP_ID筛选；未配置该值时返回所有应用的匹配结果。
+输出app_id_filter明确本次应用筛选范围。可用--app-id覆盖默认筛选。
+每条结果保留应用、Base、扫码表和请求键的完整范围，不把不同表的同名请求键合并。
+结果还包含经核实的账号标识、状态、远端record_id、固定失败类型及时间。
+不返回完整请求体、远端响应体、会话摘要、加密令牌或密钥。
+
+PENDING：尚未开始外部写入。
+RUNNING：已开始调用；长期停留应核实远端是否已经有记录。
+SUCCEEDED：已确认写入扫码流水，不代表库存入账成功。
+FAILED：明确拒绝，需要核对账号与表权限。
+UNKNOWN：结果不确定，必须先核对，不能直接换请求键再提交。
+这些查询不提供改状态、强制重发、补写事务或库存修正能力。
+
+三、追查审计
+
+按请求键查看写入及重放事件：
+  worker.py inspect audit --request-key "请求UUID4"
+查看权限拒绝事件：
+  worker.py inspect audit --outcome DENIED
+继续读取更早的审计：
+  worker.py inspect audit --before-id 上一页next_before_id --limit 50
+
+审计按ID倒序输出。has_more=true时，使用返回的next_before_id继续查询；
+下一页保持相同的应用、请求键和结果筛选条件。
+应用筛选规则与writes命令一致；输出不包含用户令牌或业务请求原文。
+审计中的AUTHORIZE记录不一定包含请求键：查拒绝事件时可按应用和outcome查询，
+不能仅凭按请求键未查到授权事件，就认定没有发生权限检查。
+
+四、运行边界
+
+单次最多100条，数据库查询设5秒语句超时和1秒锁等待上限。
+任务明细在同一只读快照内读取任务、箱号和事件，避免组合不同时间的数据。
+数据库强制只读，查询不维护或清理记录，不自动恢复未知写入，也不访问飞书。
+正常查询返回退出码0；单任务不存在返回2；连接、迁移或查询失败返回1。
+参数或筛选值不合法时拒绝查询；错误日志不输出连接串、配置密钥或原始异常正文。
+
+真实运维人员验收按“项目待办事项.txt”T002保留，后续安排人员时开展。
+实际库存执行及新旧程序切换仍按既定交接顺序推进。
+
+组合位置模型更新（2026-10-23）
+本版增加006迁移，共6份迁移、16张表。先显式执行worker.py db-init，重启后加载新代码。
+入库/转仓选仓分配行码＋位置码；新配置FINDING_ASSISTANT_ENABLE_POSITION_ALLOCATION默认false。
+新状态与接口详见“组合位置分配与运行说明.txt”；worker.py inspect positions提供运维只读跟踪。
+实际库存执行、历史接管和真实人员验收仍未完成，见T005/T010/T012。真实.env未自动覆盖或启用。
+
+库存执行开发进展（2026-10-23）
+新增inspect executions：可按--app-id、--record-id、--box-code、--state查询执行批次，--limit限制1至100条。
+新增inspect execution --source-key "Base:扫码表:record_id"：读取批次、逐步状态及逐箱事务回执。
+列表返回execution_id，可用inspect audit --request-key 该UUID追踪库存执行审计。
+这些命令只读PostgreSQL，不解密令牌、不显示完整计划、不触发飞书写入和强制恢复。
+执行状态RECONCILE不能通过改状态绕过；UNKNOWN步骤只能观察核实，不能盲目重发。
+
+
+库存待核查清单（2026-10-26）
+运行：uv run python worker.py inspect attention --limit 20
+默认按.env中的FEISHU_APP_ID隔离，可加--base-token限定Base；缺少应用标识时拒绝查询。
+默认列出5分钟前准备/运行的任务，以及不论新旧的RECONCILE任务；--min-age-seconds可设1至86400秒。
+未知写入、写入意图、权限拒绝、待核账、运行较久、准备待调度分别提供固定next_check和中文核查提示。
+RECONCILE优先，同类按更新时间从旧到新排列；counts表示本次筛选全部候选，items按limit截断并标明has_more/truncated。
+完整详情：worker.py inspect execution --source-key "Base:扫码表:record_id"
+source_key请使用返回值，不凭人读流水号推断。更多细查沿用inspect executions/writes/positions/audit/rejections。
+提醒阈值不等于进程死亡；尚在队列、合法长任务也可能入选。先核实进程和锁，再由原操作员处理。
+只读同一SQL快照，不访问飞书，不检查真实进程，不自动续跑、重发、释放位置或改变状态。
+清单不涵盖所有运维风险，不替代同步新鲜度、SQL副本巡检及人员验收；无候选也不代表整个系统健康。
+仅供已具备服务器/数据库权限的运维人员，不向员工HTTP接口开放，不输出计划、令牌或会话。
+无需新增表、迁移、.env修改或重启同步worker。告警推送、真实人员及服务器长期验收仍待办。
+
+
+待核查清单游标分页（2026-10-26）
+首屏：uv run python worker.py inspect attention --limit 20
+若has_more=true，复制返回的next_cursor，下一页增加--cursor "复制的游标"。
+同一轮须保持app-id、base-token和min-age-seconds筛选一致，limit可调整。末页next_cursor为null。
+按RECONCILE优先、updated_at、source_key联合排序，使用键集翻页，不使用偏移量。
+游标绑定应用、Base、提醒阈值及首屏as_of；非法、过长或跨筛选游标直接拒绝，不回显输入。
+as_of依据SQL时间以及任务created_at/updated_at限定本轮候选范围，固定提醒阈值的计算时点。
+多页不是跨请求的MVCC冻结快照，stable_snapshot=false；任务变化或并发提交可能影响后续结果及counts。
+更新后超过as_of的任务不会继续出现在本轮，应重新不带cursor开始扫描。清单不用于完整账务导出。
+counts是当前页SQL快照下、未施加游标位置条件的全范围候选数，不是剩余条数，不能跨页相加。
+游标是定位信息，不是登录凭据或授权；应用过滤独立执行，不把游标视为可信权限来源。
+只读查询、不访问飞书、不恢复任务、不释放位置。无需迁移、.env变动或重启同步worker。
+人员验收、告警推送、正式规模及服务器长期验收仍待办。

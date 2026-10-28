@@ -1,0 +1,12 @@
+{
+  "enabled": false,
+  "http_base": "http://127.0.0.1:8001",
+  "state_dir": "monitor-state",
+  "disk_path": ".",
+  "interval_seconds": 60,
+  "failure_threshold": 2,
+  "reminder_seconds": 3600,
+  "min_free_bytes": 1073741824,
+  "replica_stale_seconds": 300,
+  "task_stalled_seconds": 900
+}

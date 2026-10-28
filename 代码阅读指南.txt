@@ -1,0 +1,118 @@
+﻿找货助手：代码阅读指南
+更新日期：2026-10-22
+
+当前运行范围
+普通HTTP后端承接登录、四档权限核实、表单输入校验、用户身份写入扫码流水、
+幂等记录和审计；worker接收已有流水并登记内部任务。实际库存入账仍等待交接。
+操作单位是箱；飞书已有扫码流水字段与三张表单保持原样。
+PostgreSQL只承接后端辅助数据，新增运维查询不会创建库存主表或修改飞书。
+
+建议阅读顺序
+
+1. main.py → interfaces/http/__main__.py → interfaces/http/runtime.py
+   看.env加载、配置自检和HTTP应用装配。默认端口8001。
+   未启用扫码API时为HTTP_ONLY；进程启动不表示业务接口已经配置就绪。
+
+2. interfaces/http/scan_routes.py → application/scan_service.py
+   看登录回调、会话、CSRF、输入字段限制、幂等键及入库/出库/转仓表单入口。
+   当前创建扫码流水成功会返回inventory_posted=false，不等于库存入账失败。
+
+3. security/login.py → security/native_access.py → adapters/feishu/scan_access.py
+   看飞书身份验证及四档协作权限映射；每次操作重新核实身份和权限。
+   应用令牌用于权限查询，流水读写使用经过核实的用户令牌。
+   不从用户传入的姓名、角色或账号ID推定操作权限。
+
+4. infrastructure/postgres_operations.py
+   看加密持久会话、一次性OAuth挑战、稳定请求键和审计。
+   同键同内容成功后返回原结果；结果不确定时记录UNKNOWN，不自动重发。
+
+5. worker.py → interfaces/worker/__main__.py → application/intake_worker.py
+   看接收任务、运行诊断、状态统计、维护和只读排查命令。
+   持续接收发生暂时故障时退避；迁移冲突停止，不自动改表结构。
+   日志配置与轮转见infrastructure/runtime_logging.py；接收停止信号见shutdown.py。
+   参数、默认容量及进程边界见“常驻运行与日志说明.txt”。
+
+6. adapters/feishu/existing_forms.py → domain/scan_submission.py
+   → application/scan_ingestion.py → infrastructure/postgres_tasks.py
+   看现有扫码流水的字段检查、最多36个箱号、重复来源去重和输入变更隔离。
+   接收任务为QUEUED不表示库存已经变更；BLOCKED/RECONCILE需要后续核实。
+
+7. infrastructure/operations_queries.py
+   看后台任务、写请求和审计的只读查询，CLI用法见“后台运维查询说明.txt”。
+   只选择排查所需字段，不解密令牌、不输出完整请求/响应、不提供强制重试。
+   该入口面向具有服务器数据库访问权限的维护人员，不向操作员开放HTTP路由。
+
+8. domain/inbound_rules.py → application/inbound_validation.py
+   → adapters/feishu/business_tables.py
+   看箱表、行表及可选事务账的只读查询、基础入库规则和整批校验预览。
+   读取失败不能当作箱号不存在；预览通过不表示库存已经入账。
+
+上面未写完整路径的目录均位于finding_assistant/下。
+数据库迁移位于infrastructure/sql/；现有四份迁移共10张辅助表。
+迁移校验和参与启动/运维检查，已应用的迁移不能直接修改。
+
+当前一次表单录入的调用链
+POST /api/v1/scans/inbound（或outbound、transfer）
+  → scan_routes解析会话、CSRF和Idempotency-Key
+  → NativePermissionGate核实身份、租户和飞书协作权限
+  → ScanService核对允许输入的字段与表单事件
+  → PostgresOperations保存写请求，阻止同键内容变化和重复调用
+  → NativeScanAccess以用户身份写入扫码流水
+  → 持久化远端record_id、响应和审计，返回原流水记录
+这是兼容表单入口；未执行箱表变更、逐箱事务或异常回写。
+转仓自动模式另见下述说明，会预占目标行码，但不会完成库存转仓。
+
+常见标识和状态
+箱号：实物箱子的识别码；不能以FNSKU或PO单号假定唯一。
+record_id：飞书某行的内部ID，不是RK-xxxx等显示流水号。
+source_key：Base标识:扫码表ID:来源record_id，标识一次来源提交。
+Idempotency-Key：一次写请求的UUID4稳定键，重试必须保留原键和原内容。
+QUEUED/BLOCKED/RECONCILE：后台接收任务状态，不是飞书库存处理结果。
+PENDING/RUNNING/SUCCEEDED/FAILED/UNKNOWN：写请求的调用状态，
+其中SUCCEEDED表示扫码流水写入成功，不表示该批库存已入账。
+
+历史实现与未来预留
+application/workflow.py、pallets.py、administration.py及旧movements路由保留了
+早期库存原型；当前runtime未将其装配为正式库存执行器，不能照搬为现行业务闭环。
+security/permissions.py是早期细分权限模型；当前扫码运行入口使用native_access.py。
+根目录部分同名.py仅为兼容导入包装，修改时应找到finding_assistant/下的真实实现。
+servers/是未来MCP适配预留，当前普通HTTP应用不会自动启动MCP Server。
+
+交接资料
+已确认业务基线：已确认业务规则与对接说明.txt。
+业务规则未定事项：业务待定事项台账.txt。
+延期执行、真实人员验收等工作：项目待办事项.txt。
+后台接收与排查：后台任务运行说明.txt、后台运维查询说明.txt。
+部署配置与数据库：.env.example、运行自检与故障处理说明.txt、数据库运维说明.txt。
+测试用例、模拟数据和验证报告保留在开发侧，不随运行包交付。
+干净运行包按固定清单在开发侧构建，包内README使用“交付与启动说明.txt”的内容；
+文件清单及构建编号见runtime-manifest.json，实际目标主机验收按待办T004安排。
+
+转仓自动模式（2026-10-22）
+同一transfer路由请求提供target_warehouse时进入ScanService.prepare_transfer。
+application/transfer_preparation.py负责核实身份、固定输入与重放原分配；
+domain/transfer.py判断箱状态、原行码和目标候选；
+adapters/feishu/business_tables.py完整读取箱表与行表；
+infrastructure/transfer_reservations.py以数据库锁、唯一索引协调目标码与箱子预占。
+成功只表示转仓流水已写入，源行码仍保留；实际执行与普通操作员完整读取尚待交接。
+默认FINDING_ASSISTANT_ENABLE_TRANSFER_ALLOCATION=false，详情及请求格式见转仓开发与字段说明.txt。
+
+12小时会话（2026-10-22）
+security/login.py解析访问/刷新期限并生成固定12小时会话；runtime.py请求offline_access。
+postgres_operations.py先持久认领再调用刷新接口，轮换后加密保存两类凭据；
+scan_routes.py同步Cookie期限。004迁移扩展会话表，不修改飞书字段或既有会话期限。
+配置及故障处理见登录会话与令牌刷新说明.txt；真实验收见T006。
+
+组合位置模型更新（2026-10-23）
+本版增加006迁移，共6份迁移、16张表。先显式执行worker.py db-init，重启后加载新代码。
+入库/转仓选仓分配行码＋位置码；新配置FINDING_ASSISTANT_ENABLE_POSITION_ALLOCATION默认false。
+新状态与接口详见“组合位置分配与运行说明.txt”；worker.py inspect positions提供运维只读跟踪。
+实际库存执行、历史接管和真实人员验收仍未完成，见T005/T010/T012。真实.env未自动覆盖或启用。
+
+库存执行开发进展（2026-10-23）
+新增阅读链：scan_routes的inventory-executions路由 → application/inventory_execution.py
+→ domain/inventory_posting.py → adapters/feishu/inventory_access.py → infrastructure/inventory_execution_store.py。
+领域模块生成不可变逐箱计划；应用模块协调校验/恢复；飞书适配器限定表和可写字段；存储模块持久意图、锁及回执。
+007迁移新增3表，当前结构19表/7份迁移。接口和恢复说明见“库存执行与恢复说明.txt”。
+正常实际执行代码已开发，默认关闭；此前“实际执行未开发”的描述仅对应早期版本。
+原生表单自动预占/后台身份、异常反馈和争议分支尚有待办；不要据此把普通HTTP创建流水当作自动入账。

@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "enabled": false,
+  "system_id": "finding-assistant",
+  "destination": "D:/系统运维/找货助手/日志",
+  "transport": "sftp",
+  "host": "",
+  "port": 22,
+  "username": "",
+  "identity_file": "",
+  "known_hosts": "",
+  "remote_root": "/var/lib/finding-assistant/log-export",
+  "daily_time": "09:00",
+  "min_free_bytes": 1073741824
+}

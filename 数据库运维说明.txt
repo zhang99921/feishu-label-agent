@@ -1,0 +1,141 @@
+数据库用途
+飞书继续承载现有扫码流水和业务流转。PostgreSQL保存后端辅助数据，以及版本化业务副本/SQL索引。
+本机数据库 finding_assistant schema 共19张表（7份迁移）：
+scan_jobs：来源任务、幂等摘要和隔离状态。
+scan_items：任务的逐箱输入。
+scan_job_events：接收任务的状态事件。
+app_users：经过飞书核实的应用/租户/账号及登录时间，不维护角色成员。
+user_sessions：会话摘要、加密访问/刷新令牌、分别的到期时间、刷新认领和撤销时间。
+oauth_challenges：一次性登录state摘要、浏览器绑定摘要、加密PKCE及有效期。
+write_requests：前端写请求、输入摘要、调用状态、远端记录ID及响应。
+audit_events：登录、注销、授权、写入、重放和维护事件。
+location_reservations：转仓来源、目标行码预占、稳定输入及未知结果占用；不是库存主表。
+schema_migrations：已执行的迁移文件、SHA-256及执行时间。
+
+配置
+数据库连接串由 FINDING_ASSISTANT_DATABASE_URL 指定。
+FINDING_ASSISTANT_TOKEN_KEY 必须是随机 Fernet 密钥；运行项目的 .env 已设置本机值。
+.env 不提交Git。移到服务器时单独配置该密钥；不要直接更换仍在使用的密钥。
+数据库备份与密钥均需保管，失去密钥会导致现存会话无法解密。
+不同应用通过 app_id 隔离会话与请求，令牌不明文存入数据库。
+账号可能在不同应用具有不同 open_id，因此以应用+租户+open_id识别用户。
+
+命令（在项目目录执行）
+uv run python worker.py db-init
+  显式执行迁移，可重复运行；校验已经执行的文件摘要，禁止直接修改已上线迁移。
+uv run python worker.py status
+  返回后台任务、身份运维表和写请求状态的汇总，不输出秘密。
+uv run python worker.py doctor
+  只读检查配置、数据库连接、七份迁移是否齐全及校验和是否一致，不自动执行迁移。
+uv run python worker.py db-maintain
+  默认每轮每类最多清理1000条过期挑战、过期超过7天的会话，默认不删除审计。
+  审计期限尚未确认；仅另行确定期限后显式传--audit-days才会分批清理到期审计。
+  该命令不会自动运行；不要将运行日志30天期限套用到审计或未经确认安排审计清理。
+  不清理用户、后台任务和写请求，避免丢失业务追踪或幂等依据。
+
+异常处理
+PENDING：尚未开始外部写入。
+RUNNING：已开始调用；长时间停留时应核实远端记录和日志。
+SUCCEEDED：流水已写入，可按记录ID查询；不代表库存完成入账。
+FAILED：飞书明确拒绝；检查账号和表/字段权限。
+UNKNOWN：结果不确定，禁止自动重发，人工核对后再设计补偿处理。
+接口超时、上游响应无法核实等异常同样保留UNKNOWN，不因异常继承关系误标为FAILED。
+当前不提供一键改状态/强制重试接口，避免误操作产生重复流水。
+
+日常关注 write_requests 的 UNKNOWN/RUNNING 积压、任务 BLOCKED/RECONCILE、
+数据库磁盘容量、备份是否成功。定期备份 PostgreSQL 并验证恢复。
+本地已验证事务与重启后会话恢复；尚未代替服务器备份、监控和全天运行验收。
+
+2026-10-22补记：已在新建的独立PostgreSQL测试库验证迁移、并发幂等、未知结果隔离、
+加密会话及独立进程重启后的会话读取与注销生效。验证后已删除专用测试库。
+飞书身份和业务HTTP在这些数据库测试中使用模拟接口，不等同于真实员工账号验收。
+原业务数据库只做连接与迁移检查，未因本轮验证修改库存或业务记录。
+
+只读明细排查（2026-10-22）
+worker.py inspect tasks：按任务状态、来源record_id或箱号查已接收任务。
+worker.py inspect task --source-key "完整来源键"：查看任务原因、原箱号和最近事件。
+worker.py inspect writes：按状态、应用和请求键追查远端记录，不输出完整请求/响应。
+worker.py inspect audit：按应用、请求键或审计结果查询，可使用next_before_id继续分页。
+命令使用数据库只读事务、查询超时和返回数量上限，不需要解密用户令牌。
+本轮无新增表或迁移，不提供改状态/强制重试，不调用飞书；详见“后台运维查询说明.txt”。
+writes/audit默认按.env的FEISHU_APP_ID筛选，未配置时查询所有应用；输出保留目标范围。
+真实运维人员验收见“项目待办事项.txt”T002，暂不在本轮开展。
+
+转仓预占补记（2026-10-22）
+新增003_location_reservations.sql。status的location_reservation_states返回预占状态计数。
+RESERVED为已预占；RECORDED为已写转仓流水；UNKNOWN为结果待核实；
+COOLING为已明确进入冷却；RELEASED为可再次分配。RECORDED不等于库存已转仓。
+未知预占不自动到期；只有明确冷却且到期的预占可再次使用。来源码释放与实际执行仍未启用。
+现有write_requests与audit_events继续记录用户身份、请求键、远端流水和写入结果。
+详见转仓开发与字段说明.txt；真实启用交接与验收见T005。
+
+12小时会话补记（2026-10-22）
+新增004_session_refresh.sql扩展user_sessions，表总数仍为10。
+两类令牌均加密；旧会话期限保留，新授权默认43200秒绝对期限。
+status新增session_refresh_states，审计事件TOKEN_REFRESH记录刷新状态；
+REFRESHING/UNKNOWN不强制重放，需核实或重新授权，详见登录会话与令牌刷新说明.txt。
+
+业务副本与SQL索引（2026-10-23）
+新增005_business_backups.sql，原有表及历史预占不删除、不改写：
+business_backups：业务副本版本、来源Base、读取时间窗、完成/失败状态、校验摘要及溯源信息。
+business_backup_tables：逐表名称、ID与完整字段定义。
+business_backup_records：逐条record_id与JSONB原始返回字段，保留所有选定业务表数据。
+business_box_index：箱号、FNSKU/SKU/PO、箱状态、行码、位置码、仓、数量的SQL检索索引。
+数据表ID/记录ID按副本版本区分；同一箱号的多条档案保留，不擅自去重选一条。
+成功后才发布完整版本。失败不覆盖前一版本；这些表不参与现有库存过账。
+工厂端搜索接口尚未开放；运维命令与来源、字段类型和恢复边界见“业务备份与SQL检索说明.txt”。
+此副本不代替pg_dump/附件文件/加密密钥等完整备份；没有自动清理历史版本或定时拉取。
+
+组合位置（2026-10-23后续更新）
+新增006_position_reservations.sql：position_reservations及position_box_claims两表。
+前者保存源/目标、批次历史与占用/冷却，后者保存箱档案成员及未完成请求认领。
+唯一索引以行码＋位置码约束，不锁整个行码；旧location_reservations原样保留且自动分配时隔离其区域。
+status新增position_reservation_states，inspect positions可按请求键、批次或组合位置查询。
+当前确认接点仅供未来可信库存执行器使用，没有手工强制完成/释放的HTTP或命令行接口。
+不能通过直接UPDATE状态代替库存核账。未核实的RECORDED/UNKNOWN不按时间释放。
+完整说明见“组合位置分配与运行说明.txt”。
+
+库存执行开发进展（2026-10-23）
+007_inventory_execution.sql新增inventory_executions、inventory_steps、inventory_transactions三表，共19表/7份迁移。
+旧迁移校验和及历史位置不改；显式db-init建立新表，实际写入开关保持false。
+execution_id关联audit_events.request_key中的库存执行审计，不等同于创建流水请求的幂等键。
+source_key关联接收事件及逐箱事务；执行PREPARED/RUNNING/RECONCILE/SUCCEEDED与接收任务状态分开。
+逐箱PLANNED不表示远端有账，POSTED表示对应事务账已回读确认，仍须看全批执行是否完成。
+inspect executions和inspect execution提供只读核账，详见“库存执行与恢复说明.txt”。
+
+
+轮询式增量同步（2026-10-26）
+入口仍为worker.py sync --watch，单worker串行处理，飞书保持业务主存。
+FINDING_ASSISTANT_ENABLE_INCREMENTAL_SYNC=true启用；运行模板默认false，本机固定Demo已配置true。
+FEISHU_SYNC_FULL_SECONDS=3600：第一轮建立全量基线，之后每轮轮询增量，到期再执行所有表业务字段全量对账。
+周期按实际同步轮次触发，关机/停止时不运行，不是精确整点计划；独立的周期SQL内容巡检仍保持3600秒。
+
+实现方式是分页读取完整记录ID/系统修改时间/主字段清单，再回读变化记录；不是公网事件推送，不需要新增公网回调或订阅权限。
+删除通过确认后的完整ID清单识别，不把单条接口404、网络错误或缺页推断为删除。
+清单前后两次核对；变化、缺少时间、结构不稳或单条回读不确定时放弃本轮暂存，改用全量读取。
+若只是分页顺序变化也保守回退；大批变更超过100次单条回读预算同样回退，避免过多请求。
+纯数据类型才复用缓存；当前支持类型1/2/3/4/5/7/13/15/1005。关联、公式、查找、附件、人员和未知字段的表每轮仍全读。
+不额外增加飞书字段，不依赖使用者创建“最后修改时间”业务列；用接口automatic_fields返回的系统元数据。
+缓存原始内容先与已发布摘要核对，损坏时从源全读并发布新版本，保留原有历史版本，不原地篡改历史业务字段。
+技术时间戳不是跨表事务版本；源未改变时间或同一时间精度内的遗漏，仍需周期全量对账兜底，不宣称源端ACID快照。
+
+仍将完整当前记录集写入未发布SQL版本，校验并重建箱索引后原子切换active_backup_id。
+源的行表变更会反映到重建的箱索引。原始字段不变时复用活动版本，仅刷新独立技术时间，不积累重复完整版本。
+每页最多100条；不把整个表或完整ID集合放入Python内存。当前优化的是飞书正文回读，SQL仍有完整暂存、摘要和索引开销。
+每轮仍需扫描全部ID清单且存在额外请求；小样本不保证比全量更快，正式数据规模须测网络耗时、限流和磁盘I/O。
+
+新增010_incremental_sync.sql，只加business_backup_records.source_modified_time和business_sync_sources.last_full_read_started_at。
+源修改时间与业务fields分开存储，不改已有字段设计；后台仍21张表，迁移总数10份，001至009校验和保持不变。
+运维显式执行worker.py db-init安装010；不要修改已安装迁移文件，也不要让旧的VALUES四列写入代码与新结构混跑。
+升级前暂停本任务worker，迁移与运行文件更新后再恢复；旧包回滚前须检查010结构兼容性，不自动删除新列。
+失败、中断均保留旧活动版本；只清理自己未发布的暂存，旧历史、审计、幂等和库存事务保留。
+日志增加mode、reused、changed_fetch；完整诊断结果含清单页数、保守全读表数、变更回读数和回退标识，不输出数据正文。
+普通账号逐行逐字段权限开关、库存执行、位置分配开关均保持不变；本次没有写飞书业务记录。
+事件推送、真实人员权限验收、正式规模压测、历史保留策略和服务器托管仍是待办。
+接口依据：飞书官方SDK list_app_table_record_request.py / get_app_table_record_request.py / app_table_record.py，仓库https://github.com/larksuite/oapi-sdk-python
+
+快速受理更新（2026-10-28）
+新手机提交走POST /api/v1/warehouse-tasks，PG持久登记后返回202/task_id；飞书权限复核、位置准备、流水及入账在后台执行。受理不等于入账，前端轮询原任务，旧接口保持兼容。
+新增013迁移及warehouse_tasks表（共23表/13迁移），本机已迁移；.env不变，HTTP需重启。任务绑定原配置、原账号和原幂等键，重启可恢复；会话失效需同账号续办，未知写入停留人工核查。
+单Base串行执行；待执行全局64个、单账号8个，满队列明确拒绝。实际批量吞吐/并发及真实账号新入口验收继续待办。
+详细流程、接口、安全与恢复口径见《快速受理与后台恢复说明.txt》。测试材料不复制进运行项目。
